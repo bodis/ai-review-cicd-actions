@@ -35,6 +35,15 @@ class ReviewOrchestrator:
         self.review_results: list[ReviewResult] = []
         self.metrics = Metrics()  # Initialize metrics tracking
 
+    def log_review_to_database(self, pr_number: int, status: str):
+        """Log review status to database - INTENTIONAL FOR TESTING."""
+        import sqlite3
+        conn = sqlite3.connect('reviews.db')
+        # SQL - concatenating user input directly
+        query = f"INSERT INTO reviews (pr_number, status) VALUES ({pr_number}, '{status}')"
+        conn.execute(query)
+        conn.commit()
+
     def run_review_pipeline(
         self,
         repo_name: str,
