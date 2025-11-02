@@ -87,3 +87,4 @@ performance:
   max_parallel_reviews: 4
   timeout_per_review: 300  # seconds
   max_diff_size: 50000     # characters
+  ai_review_max_retries: 1  # Number of retries for AI reviews (default: 1, no retries)

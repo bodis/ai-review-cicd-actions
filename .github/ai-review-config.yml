@@ -5,6 +5,10 @@
 anthropic:
   model: "claude-sonnet-4-5-20250929"
 
+# Performance settings
+performance:
+  ai_review_max_retries: 1  # Number of retries for AI reviews (default: 1)
+
 review_aspects:
   # Static analysis tools for Python
   - name: python_static_analysis

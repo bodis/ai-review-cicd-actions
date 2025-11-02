@@ -1,6 +1,14 @@
 # Example Configuration for Spring Boot Java Project
 # Place this at .github/ai-review-config.yml in your Spring Boot project
 
+# Anthropic API configuration (optional)
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Default: Claude Sonnet 4.5 (latest)
+
+# Performance settings
+performance:
+  ai_review_max_retries: 1  # Number of retries for AI reviews (default: 1)
+
 project_context:
   name: "Spring Boot Payment Service"
   architecture: "Spring Boot Microservices with REST API"

@@ -32,18 +32,22 @@ class AIReviewEngine:
     def run_claude_review(
         self,
         prompt: str,
-        max_retries: int = 3
+        max_retries: int = None
     ) -> Dict[str, Any]:
         """
         Execute Claude Code with validation and retry logic.
 
         Args:
             prompt: The prompt to send to Claude
-            max_retries: Maximum number of retry attempts
+            max_retries: Maximum number of retry attempts (default from config)
 
         Returns:
             Parsed JSON response from Claude
         """
+        # Use config value if not specified
+        if max_retries is None:
+            max_retries = self.config.get('performance', {}).get('ai_review_max_retries', 1)
+
         for attempt in range(max_retries):
             try:
                 # Run Claude Code in non-interactive mode
@@ -93,15 +97,31 @@ class AIReviewEngine:
             with open(prompt_file, 'w', encoding='utf-8') as f:
                 f.write(prompt)
 
+            # Debug: Also save to a debug file (useful for troubleshooting)
+            if os.getenv('DEBUG_AI_PROMPTS'):
+                debug_file = self.project_root / f'.claude_debug_{int(time.time())}.txt'
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write(prompt)
+                print(f"   🐛 Debug prompt saved to: {debug_file}")
+
+            # Build command with debug flags if enabled
+            claude_cmd = [
+                'claude',
+                '--print',  # Non-interactive mode (essential for CI/CD!)
+                '--output-format', 'json',  # Structured output
+                '--dangerously-skip-permissions',  # Skip permission prompts in CI
+            ]
+
+            # Add verbose flag for debugging
+            if os.getenv('DEBUG_AI_PROMPTS'):
+                claude_cmd.append('--verbose')
+                print(f"   🐛 Debug mode enabled, using --verbose flag")
+
+            claude_cmd.append(str(prompt_file))  # Input prompt file
+
             # Execute Claude Code with proper CI/CD flags
             result = subprocess.run(
-                [
-                    'claude',
-                    '--print',  # Non-interactive mode (essential for CI/CD!)
-                    '--output-format', 'json',  # Structured output
-                    '--dangerously-skip-permissions',  # Skip permission prompts in CI
-                    str(prompt_file)  # Input prompt file
-                ],
+                claude_cmd,
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
@@ -136,6 +156,12 @@ class AIReviewEngine:
                         usage_info.get('cache', 0)
                     )
 
+            # Debug: Log raw output for investigation
+            if not result.stdout or len(result.stdout.strip()) < 10:
+                print(f"⚠️ Warning: Claude Code returned minimal output ({len(result.stdout)} chars)")
+                print(f"   Stdout preview: {result.stdout[:200]}")
+                print(f"   Stderr preview: {result.stderr[:200]}")
+
             return result.stdout
 
         except subprocess.TimeoutExpired:
@@ -157,35 +183,113 @@ class AIReviewEngine:
         """
         Validate and parse JSON output from AI.
 
+        Handles two formats:
+        1. Claude Code CLI JSON wrapper: {"content": [{"text": "..."}]}
+        2. Direct Claude response with JSON
+
         Args:
             output: Raw output string
 
         Returns:
             Parsed JSON dictionary
         """
-        # Try to extract JSON from output (may be wrapped in markdown code blocks)
         json_str = output.strip()
+
+        # Debug: Show what we received
+        if len(json_str) < 200:
+            print(f"   📥 Raw output ({len(json_str)} chars): {json_str}")
+        else:
+            print(f"   📥 Output length: {len(json_str)} chars")
+            print(f"   📥 First 200 chars: {json_str[:200]}")
+            print(f"   📥 Last 100 chars: {json_str[-100:]}")
+
+        # If output is empty, return empty findings
+        if not json_str or json_str in ['OK', 'ok', 'Ok']:
+            print(f"   ⚠️ No output received, returning empty findings")
+            return {'findings': []}
+
+        # Try to parse as JSON first (might be CLI wrapper)
+        try:
+            parsed = json.loads(json_str)
+
+            # Check if it's Claude Code CLI JSON wrapper format
+            if isinstance(parsed, dict):
+                # Format 1: CLI wrapper with content array
+                if 'content' in parsed and isinstance(parsed['content'], list):
+                    print(f"   🔍 Detected CLI JSON wrapper, extracting content...")
+                    # Extract text from first content block
+                    if len(parsed['content']) > 0 and 'text' in parsed['content'][0]:
+                        claude_text = parsed['content'][0]['text']
+                        print(f"   📝 Extracted Claude response ({len(claude_text)} chars)")
+                        # Recursively parse the extracted text
+                        return self._parse_claude_response(claude_text)
+
+                # Format 2: Direct findings object
+                if 'findings' in parsed:
+                    print(f"   ✅ Direct findings object with {len(parsed['findings'])} findings")
+                    return parsed
+
+            # Format 3: List of findings
+            if isinstance(parsed, list):
+                print(f"   ✅ Direct findings list with {len(parsed)} findings, wrapping in object")
+                return {'findings': parsed}
+
+        except json.JSONDecodeError:
+            # Not valid JSON, might be text with JSON inside
+            print(f"   ⚠️ Not valid JSON, attempting to extract JSON from text...")
+            pass
+
+        # Try to extract JSON from text (markdown code blocks, etc.)
+        return self._parse_claude_response(json_str)
+
+    def _parse_claude_response(self, text: str) -> Dict[str, Any]:
+        """
+        Parse Claude's text response, extracting JSON from markdown code blocks if needed.
+
+        Args:
+            text: Claude's response text
+
+        Returns:
+            Parsed findings dictionary
+        """
+        json_str = text.strip()
 
         # Remove markdown code fences if present
         if json_str.startswith('```json'):
             json_str = json_str[7:]  # Remove ```json
-        if json_str.startswith('```'):
+        elif json_str.startswith('```'):
             json_str = json_str[3:]
+
         if json_str.endswith('```'):
             json_str = json_str[:-3]
 
         json_str = json_str.strip()
 
+        # Try to find JSON object in text
+        import re
+        json_match = re.search(r'\{[\s\S]*"findings"[\s\S]*\}', json_str)
+        if json_match:
+            json_str = json_match.group(0)
+            print(f"   🔍 Extracted JSON block from text ({len(json_str)} chars)")
+
         # Parse JSON
-        parsed = json.loads(json_str)
+        try:
+            parsed = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"   ❌ JSON parse error: {e}")
+            print(f"   📄 Attempted to parse: {json_str[:300]}")
+            raise
 
         # Validate schema
-        required_fields = ['findings']
-        for field in required_fields:
-            if field not in parsed:
-                raise ValueError(f"Missing required field: {field}")
+        if isinstance(parsed, list):
+            print(f"   ✅ Findings list with {len(parsed)} items, wrapping in object")
+            return {'findings': parsed}
 
-        return parsed
+        if isinstance(parsed, dict) and 'findings' in parsed:
+            print(f"   ✅ Findings object with {len(parsed['findings'])} findings")
+            return parsed
+
+        raise ValueError(f"Missing required field 'findings' in response")
 
     def _build_correction_prompt(
         self,

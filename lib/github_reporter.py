@@ -166,15 +166,37 @@ class GitHubReporter:
         # Post review comments
         for finding, comment_body in zip(inline_findings, comments):
             try:
+                # Normalize file path to relative path
+                # GitHub API expects paths relative to repo root
+                file_path = finding.file_path
+
+                # Remove absolute path prefixes if present
+                # Handles: /home/runner/work/repo/repo/lib/file.py -> lib/file.py
+                if '/' in file_path:
+                    # Try to find the repo name in the path and remove everything before it
+                    parts = file_path.split('/')
+                    # Look for duplicate repo name pattern (common in GH Actions)
+                    for i in range(len(parts) - 1):
+                        if i > 0 and parts[i] == parts[i-1]:
+                            file_path = '/'.join(parts[i+1:])
+                            break
+                    else:
+                        # If no duplicate found, check if path starts with common prefixes
+                        if file_path.startswith('/home/runner/work/'):
+                            # Extract after the repo name duplication
+                            repo_parts = file_path.split('/')
+                            if len(repo_parts) > 5:
+                                file_path = '/'.join(repo_parts[5:])
+
                 # Create review comment on specific line
                 pr.create_review_comment(
                     body=comment_body,
                     commit=latest_commit,
-                    path=finding.file_path,
+                    path=file_path,
                     line=finding.line_number
                 )
             except Exception as e:
-                print(f"Failed to post inline comment on {finding.file_path}:{finding.line_number}: {e}")
+                print(f"Failed to post inline comment on {file_path}:{finding.line_number}: {e}")
 
     def update_status_check(
         self,
