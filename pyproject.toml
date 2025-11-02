@@ -58,6 +58,21 @@ Issues = "https://github.com/your-org/ai-review-cicd-actions/issues"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# Hatchling build configuration
+[tool.hatch.build.targets.wheel]
+packages = ["lib", "prompts", "config"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/lib",
+    "/prompts",
+    "/config",
+    "/main.py",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+]
+
 # Dependency groups (PEP 735)
 [dependency-groups]
 dev = [

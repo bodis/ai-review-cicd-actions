@@ -230,18 +230,30 @@ Base Prompt
 # Install UV (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install all dependencies
+# Install all dependencies (creates .venv if needed)
 uv sync
 
-# Verify setup
-uv run python --version
-uv run pytest --version
+# Activate virtual environment
+source .venv/bin/activate
+
+# Verify setup (within venv)
+python --version
+pytest --version
 ```
+
+**IMPORTANT for AI Assistants**: This project uses a local virtual environment (`.venv/`). Always activate the venv before running Python commands:
+- Use `source .venv/bin/activate` before running commands
+- OR prefix commands with `.venv/bin/python` instead of using `uv run`
+- The venv is always used for development work
 
 ### Running Locally
 
 ```bash
-uv run python main.py \
+# Activate venv first
+source .venv/bin/activate
+
+# Run the main script
+python main.py \
   --repo owner/repo \
   --pr 123 \
   --config .github/ai-review-config.yml \
@@ -252,18 +264,24 @@ uv run python main.py \
 ### Testing
 
 ```bash
-uv run pytest                          # Run all tests
-uv run pytest --cov=lib --cov-report=html  # With coverage
-uv run pytest tests/test_models.py -v  # Specific test file
-uv run pytest -m unit                  # Only unit tests
+# Activate venv first
+source .venv/bin/activate
+
+# Run tests
+pytest                          # Run all tests
+pytest --cov=lib --cov-report=html  # With coverage
+pytest tests/test_models.py -v  # Specific test file
+pytest -m unit                  # Only unit tests
 ```
 
 ### Adding Dependencies
 
 ```bash
+# These commands work outside venv (UV manages the environment)
 uv add package-name        # Production dependency
 uv add --dev package-name  # Dev dependency
 uv lock --upgrade          # Update all dependencies
+uv sync                    # Sync venv after changes
 ```
 
 ### Adding New Language Analyzer
