@@ -160,9 +160,32 @@ Powered by Claude, specialized prompts for:
 
 ## Quick Start
 
-### Showcase: Python Project Setup
+### 🎯 Recommended: Simple Self-Review Pattern
 
-This example demonstrates a complete setup for a modern Python project using UV.
+**For single projects** (like this repository reviews itself):
+
+See **[`self/`](self/)** directory for the **recommended simple pattern**:
+- ✅ Single workflow file to copy
+- ✅ Simple configuration
+- ✅ No reusable workflow complexity
+- ✅ Uses code from PR branch directly
+
+**Copy and adapt**:
+```bash
+cp self/workflow.yml .github/workflows/ai-review.yml
+cp self/config.yml .github/ai-review-config.yml
+# Customize config.yml for your languages
+```
+
+See [self/README.md](self/README.md) for complete guide.
+
+---
+
+### 🏢 For Organizations: Reusable Workflow Pattern
+
+**For 10+ repositories** with centralized review system:
+
+This example shows the reusable workflow approach for organizations.
 
 **Prerequisites**: Only one secret needed!
 - ✅ `ANTHROPIC_API_KEY` - Get from [Anthropic Console](https://console.anthropic.com/)
@@ -192,6 +215,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
 jobs:
   code-review:
     uses: your-org/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
@@ -200,12 +228,7 @@ jobs:
       python-version: '3.11'
       company-config-url: 'github://your-org/policies/main/code-review.yml'
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-    permissions:
-      contents: read
-      pull-requests: write
-      statuses: write
 ```
 
 **3. Optional Project Configuration** (`.github/ai-review-config.yml`):

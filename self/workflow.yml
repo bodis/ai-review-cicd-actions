@@ -1,3 +1,7 @@
+# Self-Review Workflow
+# This is the ACTUAL recommended pattern for using this review system
+# Copy this to your project's .github/workflows/ai-review.yml
+
 name: AI Code Review
 
 on:
@@ -39,21 +43,14 @@ jobs:
 
       - name: Install Claude Code CLI
         run: |
-          # Install Claude Code
           curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
-
-          # Add to PATH
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-          # Verify installation
           claude --version
 
       - name: Validate Environment
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Check API key format
           if [[ -z "$ANTHROPIC_API_KEY" ]]; then
             echo "::error::ANTHROPIC_API_KEY secret is not set"
             echo "::error::Add it in: Settings → Secrets → Actions → New secret"
@@ -65,8 +62,6 @@ jobs:
             exit 1
           fi
 
-          # Test Claude Code authentication
-          echo "Testing Claude Code..."
           echo "Test" | claude --print "Say 'OK'" || {
             echo "::error::Claude Code authentication failed"
             exit 1
@@ -74,21 +69,10 @@ jobs:
 
           echo "✅ Environment validated"
 
-      - name: Install Node.js (for JS/TS analysis)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-        if: hashFiles('package.json') != ''
-
-      - name: Install JS dependencies
-        run: npm ci
-        if: hashFiles('package.json') != ''
-
       - name: Run AI Code Review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Auto-provided by GitHub Actions
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # Must add to repo secrets
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # Add to repo secrets
           CLAUDE_CODE_HEADLESS: '1'  # Disable interactive features
           NO_COLOR: '1'  # Disable ANSI colors
         run: |

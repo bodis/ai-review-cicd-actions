@@ -38,10 +38,9 @@ on:
         type: boolean
         default: true
     secrets:
-      GITHUB_TOKEN:
-        required: true
       ANTHROPIC_API_KEY:
-        required: false
+        required: true
+        description: 'Anthropic API key for Claude Code CLI and comment generation'
       COMPANY_CONFIG_TOKEN:
         description: 'Token for accessing company configuration'
         required: false
