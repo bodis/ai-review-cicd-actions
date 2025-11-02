@@ -162,7 +162,11 @@ Powered by Claude, specialized prompts for:
 
 ### Showcase: Python Project Setup
 
-This example demonstrates a complete setup for a modern Python project using UV:
+This example demonstrates a complete setup for a modern Python project using UV.
+
+**Prerequisites**: Only one secret needed!
+- ✅ `ANTHROPIC_API_KEY` - Get from [Anthropic Console](https://console.anthropic.com/)
+- ❌ `GITHUB_TOKEN` - Automatically provided by GitHub Actions (don't add to secrets!)
 
 **1. Ensure pyproject.toml** (your project):
 
@@ -298,6 +302,99 @@ blocking_rules:
                             │   • Security Risks        │
                             └───────────────────────────┘
 ```
+
+### Validation Flow for Projects
+
+Here's how a project can integrate this validation into their workflow:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   Developer Workflow                         │
+└──────────────────────────────────────────────────────────────┘
+
+ 1. Developer Creates PR
+      ↓
+ 2. GitHub Actions Triggered
+      ↓
+┌─────────────────────────────────────────────────────────┐
+│  Environment Validation                                 │
+│  ✓ Check GITHUB_TOKEN exists                            │
+│  ✓ Check ANTHROPIC_API_KEY exists and valid format      │
+│  ✓ Install Claude Code CLI                              │
+│  ✓ Test CLI authentication                              │
+└────────────────┬────────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────────┐
+│  Static Analysis (Parallel - Fast)                      │
+│  • Ruff: Python linting & formatting                    │
+│  • Pylint: Code quality                                 │
+│  • Bandit: Security patterns                            │
+│  • mypy: Type checking                                  │
+│  • ESLint: JavaScript/TypeScript                        │
+│  Duration: 10-30 seconds                                │
+└────────────────┬────────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────────┐
+│  AI Semantic Analysis (Sequential - Deep)               │
+│  Using Claude Code CLI:                                 │
+│  • Security Review → Architecture Review                │
+│    → Code Quality → Performance → Testing               │
+│  Each review sees previous findings for context         │
+│  Duration: 30-90 seconds                                │
+│  Cost: ~$0.02-0.03                                      │
+└────────────────┬────────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────────┐
+│  Result Aggregation                                     │
+│  • Merge static + AI findings                           │
+│  • Deduplicate overlapping issues                       │
+│  • Calculate statistics                                 │
+│  • Determine risk level                                 │
+└────────────────┬────────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────────┐
+│  Comment Generation (Direct Anthropic API)              │
+│  • Generate rich summary comment                        │
+│  • Batch generate inline comments                       │
+│  • Format with emoji, code examples                     │
+│  Duration: 5-10 seconds                                 │
+│  Cost: ~$0.01                                           │
+└────────────────┬────────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────────┐
+│  Blocking Rules Evaluation                              │
+│  • Check critical findings (threshold: 0)               │
+│  • Check high findings (threshold: configurable)        │
+│  • Apply project-specific rules                         │
+│  Decision: BLOCK or APPROVE                             │
+└────────────────┬────────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────────┐
+│  GitHub Integration                                     │
+│  • Post summary comment to PR                           │
+│  • Post inline comments on code                         │
+│  • Update status check (✅ or ❌)                        │
+│  • Exit with code (0 = pass, 1 = block)                 │
+└─────────────────────────────────────────────────────────┘
+                 ↓
+  ┌──────────────┴──────────────┐
+  │                             │
+  ▼                             ▼
+APPROVED                     BLOCKED
+✅ PR can merge           ❌ Changes required
+Developer continues       Developer fixes issues
+```
+
+**Key Features of This Flow**:
+- **Environment Validation First**: Fails fast if credentials missing
+- **Static Analysis in Parallel**: Quick feedback on obvious issues
+- **AI Analysis Sequential**: Each review builds on previous context
+- **Hybrid Comment Generation**: Fast API for comments, deep CLI for analysis
+- **Clear Blocking Rules**: Transparent decision making
+- **Rich Feedback**: Summary + inline comments + status checks
+
+**Total Time**: ~1-2 minutes per PR (depends on project size)
+**Total Cost**: ~$0.03-0.05 per PR (depends on project and PR size)
 
 ### Core Components
 

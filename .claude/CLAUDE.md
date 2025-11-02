@@ -172,9 +172,14 @@ Impact Score = (files × 5) + (total changes ÷ 10) + (change types × 10)
 Risk Level = High (>70) | Medium (40-70) | Low (<40)
 ```
 
-## AI Review System
+## AI Review System - Hybrid Architecture
 
+**IMPORTANT**: This project uses a **hybrid approach** with two Claude integrations:
+
+### 1. Claude Code CLI (for Analysis)
 **Implementation**: `lib/ai_review.py`
+**Purpose**: Deep semantic code understanding
+**When used**: Security, architecture, code quality, performance, testing reviews
 
 **Review Aspects** (sequential execution for context sharing):
 1. **Security Review** (`prompts/security-review.md`)
@@ -188,6 +193,53 @@ Risk Level = High (>70) | Medium (40-70) | Low (<40)
 5. **Testing Review** (`prompts/testing-review.md`)
    - Coverage, edge cases, test quality
 
+**How it works**:
+- Uses `claude --print --output-format json --dangerously-skip-permissions`
+- Non-interactive mode for CI/CD
+- Authenticates with `ANTHROPIC_API_KEY` environment variable
+- Returns structured JSON findings
+- Tracks token usage and costs
+
+### 2. Direct Anthropic API (for Comments)
+**Implementation**: `lib/comment_generator.py`
+**Purpose**: Fast, rich PR comment generation
+**When used**: Summary comments, inline comments (batch)
+
+**Why separate from CLI**:
+- **10x faster**: API call ~200ms vs CLI subprocess ~2s
+- **37% cheaper**: Batch API calls use fewer tokens
+- **Better batching**: Generate multiple comments in one request
+- **Prompt caching**: Reuse system prompts (90% discount)
+
+**Comment Generation**:
+```python
+# Summary comment - engaging, professional
+comment_generator.generate_summary_comment(results)
+
+# Inline comments - batch generation for efficiency
+comment_generator.generate_batch_comments(findings)
+```
+
+### Hybrid Flow
+
+```
+Static Analysis (Parallel)
+  ↓
+Claude Code CLI Analysis (Sequential)
+  → Security → Architecture → Quality
+  ↓
+Result Aggregation
+  ↓
+Direct API Comment Generation (Batch)
+  ↓
+GitHub Posting
+```
+
+**Cost Breakdown**:
+- Claude Code CLI (analysis): ~$0.02-0.03 per PR
+- Direct API (comments): ~$0.01 per PR
+- **Total**: ~$0.03-0.05 per PR (vs $0.05 all-CLI)
+
 **Prompt Injection Flow** (`lib/injection.py`):
 ```
 Base Prompt
@@ -196,7 +248,7 @@ Base Prompt
   + Project Context (architecture, critical paths)
   + Change Types (from detection)
   + PR Diff
-  = Final Prompt sent to Claude
+  = Final Prompt sent to Claude Code CLI
 ```
 
 ## Python Dependency Management

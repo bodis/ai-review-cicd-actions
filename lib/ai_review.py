@@ -72,37 +72,74 @@ class AIReviewEngine:
 
     def _execute_claude_code(self, prompt: str) -> str:
         """
-        Execute Claude Code CLI.
+        Execute Claude Code CLI in non-interactive mode for CI/CD.
 
         Args:
-            prompt: Prompt to send
+            prompt: The review prompt to send to Claude
 
         Returns:
-            Raw output from Claude
+            JSON string with findings
+
+        Raises:
+            RuntimeError: If Claude Code fails or times out
+            FileNotFoundError: If Claude Code CLI is not installed
         """
         # Write prompt to temporary file
         prompt_file = self.project_root / '.claude_prompt_temp.txt'
+
         try:
-            with open(prompt_file, 'w') as f:
+            with open(prompt_file, 'w', encoding='utf-8') as f:
                 f.write(prompt)
 
-            # Execute Claude Code (this is a placeholder - actual implementation may vary)
-            # In practice, you might use the Claude API directly
+            # Execute Claude Code with proper CI/CD flags
             result = subprocess.run(
-                ['claude', '--yes', '--input', str(prompt_file)],
+                [
+                    'claude',
+                    '--print',  # Non-interactive mode (essential for CI/CD!)
+                    '--output-format', 'json',  # Structured output
+                    '--dangerously-skip-permissions',  # Skip permission prompts in CI
+                    str(prompt_file)  # Input prompt file
+                ],
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
-                cwd=str(self.project_root)
+                cwd=str(self.project_root),
+                env={
+                    **os.environ,
+                    'ANTHROPIC_API_KEY': os.getenv('ANTHROPIC_API_KEY'),
+                    'CLAUDE_CODE_HEADLESS': '1',  # Disable interactive features
+                    'NO_COLOR': '1',  # Disable ANSI color codes
+                }
             )
 
             if result.returncode != 0:
-                raise RuntimeError(f"Claude Code failed: {result.stderr}")
+                stderr = result.stderr or "No error output"
+                raise RuntimeError(
+                    f"Claude Code CLI failed with exit code {result.returncode}\n"
+                    f"Error: {stderr}\n"
+                    f"Output: {result.stdout[:500]}"
+                )
+
+            # Log token usage from stderr
+            usage_info = self._extract_token_usage(result.stderr)
+            if usage_info:
+                print(f"📊 Tokens: {usage_info['input']} in, {usage_info['output']} out")
+                print(f"💰 Cost: ${usage_info['cost']:.4f}")
 
             return result.stdout
 
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                f"Claude Code CLI timed out after 300s. "
+                f"Consider reducing prompt size or increasing timeout."
+            )
+        except FileNotFoundError:
+            raise RuntimeError(
+                "Claude Code CLI not found in PATH. "
+                "Install: curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash"
+            )
         finally:
-            # Clean up temp file
+            # Clean up temporary file
             if prompt_file.exists():
                 prompt_file.unlink()
 
@@ -249,6 +286,46 @@ Please provide a corrected response with valid JSON in this exact format:
                 continue
 
         return findings
+
+    def _extract_token_usage(self, stderr: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract token usage from Claude Code stderr output.
+
+        Args:
+            stderr: stderr output from Claude Code
+
+        Returns:
+            Dict with token counts and cost, or None if not found
+        """
+        import re
+
+        if not stderr:
+            return None
+
+        # Claude Code outputs usage like: "Tokens: 1234 input, 567 output"
+        # or "tokens used: 1234 input, 567 output"
+        match = re.search(
+            r'tokens?[:\s]+(\d+)[^\d]+input[^\d]+(\d+)[^\d]+output',
+            stderr,
+            re.IGNORECASE
+        )
+
+        if match:
+            input_tokens = int(match.group(1))
+            output_tokens = int(match.group(2))
+
+            # Claude 3.5 Sonnet pricing (as of 2025-01)
+            input_cost = input_tokens * 0.000003  # $3 per 1M tokens
+            output_cost = output_tokens * 0.000015  # $15 per 1M tokens
+            total_cost = input_cost + output_cost
+
+            return {
+                'input': input_tokens,
+                'output': output_tokens,
+                'cost': total_cost
+            }
+
+        return None
 
     def run_review(
         self,

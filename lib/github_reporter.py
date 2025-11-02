@@ -7,23 +7,34 @@ from github import Github
 from github.PullRequest import PullRequest
 
 from .models import AggregatedResults, Finding, Severity
+from .comment_generator import CommentGenerator
 
 
 class GitHubReporter:
     """Posts review results back to GitHub PR."""
 
-    def __init__(self, github_token: Optional[str] = None):
+    def __init__(self, github_token: Optional[str] = None, anthropic_api_key: Optional[str] = None):
         """
         Initialize GitHub reporter.
 
         Args:
             github_token: GitHub API token. If None, uses GITHUB_TOKEN env var.
+            anthropic_api_key: Anthropic API key for comment generation
         """
         token = github_token or os.getenv('GITHUB_TOKEN')
         if not token:
             raise ValueError("GitHub token is required")
 
         self.github = Github(token)
+
+        # Initialize comment generator with direct API (for fast, rich comments)
+        api_key = anthropic_api_key or os.getenv('ANTHROPIC_API_KEY')
+        try:
+            self.comment_generator = CommentGenerator(api_key) if api_key else None
+        except Exception as e:
+            print(f"⚠️ Warning: Could not initialize CommentGenerator: {e}")
+            print("   Falling back to simple comment formatting")
+            self.comment_generator = None
 
     def post_review_results(
         self,
@@ -65,13 +76,22 @@ class GitHubReporter:
         results: AggregatedResults
     ) -> None:
         """
-        Post summary comment on PR.
+        Post AI-generated summary comment on PR.
 
         Args:
             pr: Pull request object
             results: Aggregated results
         """
-        summary = self._generate_summary(results)
+        # Use AI to generate rich summary if available
+        if self.comment_generator:
+            try:
+                print("Generating AI summary comment...")
+                summary = self.comment_generator.generate_summary_comment(results)
+            except Exception as e:
+                print(f"⚠️ AI summary generation failed: {e}, falling back to simple template")
+                summary = self._generate_summary(results)
+        else:
+            summary = self._generate_summary(results)
 
         # Check if we already posted a comment (look for our marker)
         existing_comment = None
@@ -94,7 +114,7 @@ class GitHubReporter:
         severity_threshold: str = 'high'
     ) -> None:
         """
-        Post inline comments on specific lines.
+        Post AI-generated inline comments on specific lines.
 
         Args:
             pr: Pull request object
@@ -118,6 +138,21 @@ class GitHubReporter:
             if f.severity in allowed_severities and f.line_number is not None
         ]
 
+        if not inline_findings:
+            return
+
+        print(f"Generating {len(inline_findings)} inline comments...")
+
+        # Generate comments with AI (batch for efficiency)
+        if self.comment_generator:
+            try:
+                comments = self.comment_generator.generate_batch_comments(inline_findings)
+            except Exception as e:
+                print(f"⚠️ AI comment generation failed: {e}, falling back to simple formatting")
+                comments = [self._format_inline_comment(f) for f in inline_findings]
+        else:
+            comments = [self._format_inline_comment(f) for f in inline_findings]
+
         # Get the latest commit
         commits = list(pr.get_commits())
         if not commits:
@@ -125,28 +160,18 @@ class GitHubReporter:
 
         latest_commit = commits[-1]
 
-        # Group findings by file
-        findings_by_file: Dict[str, List[Finding]] = {}
-        for finding in inline_findings:
-            if finding.file_path not in findings_by_file:
-                findings_by_file[finding.file_path] = []
-            findings_by_file[finding.file_path].append(finding)
-
         # Post review comments
-        for file_path, findings in findings_by_file.items():
-            for finding in findings:
-                comment_body = self._format_inline_comment(finding)
-
-                try:
-                    # Create review comment on specific line
-                    pr.create_review_comment(
-                        body=comment_body,
-                        commit=latest_commit,
-                        path=file_path,
-                        line=finding.line_number
-                    )
-                except Exception as e:
-                    print(f"Failed to post inline comment on {file_path}:{finding.line_number}: {e}")
+        for finding, comment_body in zip(inline_findings, comments):
+            try:
+                # Create review comment on specific line
+                pr.create_review_comment(
+                    body=comment_body,
+                    commit=latest_commit,
+                    path=finding.file_path,
+                    line=finding.line_number
+                )
+            except Exception as e:
+                print(f"Failed to post inline comment on {finding.file_path}:{finding.line_number}: {e}")
 
     def update_status_check(
         self,

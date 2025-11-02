@@ -4,6 +4,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Prevent multiple runs on rapid pushes
+concurrency:
+  group: ai-review-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -13,6 +18,7 @@ jobs:
   ai-code-review:
     runs-on: ubuntu-latest
     name: AI-Driven Code Review
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -28,8 +34,45 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: uv sync
+
+      - name: Install Claude Code CLI
+        run: |
+          # Install Claude Code
+          curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
+
+          # Add to PATH
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+          # Verify installation
+          claude --version
+
+      - name: Validate Environment
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check API key format
+          if [[ -z "$ANTHROPIC_API_KEY" ]]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set"
+            echo "::error::Add it in: Settings → Secrets → Actions → New secret"
+            exit 1
+          fi
+
+          if [[ ! $ANTHROPIC_API_KEY =~ ^sk-ant- ]]; then
+            echo "::error::Invalid ANTHROPIC_API_KEY format (should start with sk-ant-)"
+            exit 1
+          fi
+
+          # Test Claude Code authentication
+          echo "Testing Claude Code..."
+          echo "Test" | claude --print "Say 'OK'" || {
+            echo "::error::Claude Code authentication failed"
+            exit 1
+          }
+
+          echo "✅ Environment validated"
 
       - name: Install Node.js (for JS/TS analysis)
         uses: actions/setup-node@v4
@@ -44,8 +87,10 @@ jobs:
 
       - name: Run AI Code Review
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # For Claude API if needed
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Auto-provided by GitHub Actions
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # Must add to repo secrets
+          CLAUDE_CODE_HEADLESS: '1'  # Disable interactive features
+          NO_COLOR: '1'  # Disable ANSI colors
         run: |
           uv run python main.py \
             --repo ${{ github.repository }} \
@@ -53,20 +98,47 @@ jobs:
             --output review-results.json
 
       - name: Upload review results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: review-results
+          name: review-results-pr-${{ github.event.pull_request.number }}
           path: review-results.json
+          retention-days: 30
 
       - name: Check review status
         if: always()
         run: |
-          if [ -f review-results.json ]; then
-            # Extract should_block from JSON
-            SHOULD_BLOCK=$(python -c "import json; print(json.load(open('review-results.json'))['should_block'])")
-            if [ "$SHOULD_BLOCK" = "True" ]; then
-              echo "::error::Code review found blocking issues"
-              exit 1
-            fi
+          if [ ! -f review-results.json ]; then
+            echo "::error::Review results file not found"
+            exit 1
           fi
+
+          # Use Python for safe JSON parsing
+          cat > check_results.py << 'EOF'
+import json
+import sys
+
+try:
+    with open('review-results.json') as f:
+        results = json.load(f)
+
+    should_block = results.get('should_block', False)
+    reason = results.get('blocking_reason', 'No reason provided')
+    findings_count = len(results.get('all_findings', []))
+
+    print(f"📊 Findings: {findings_count}")
+    print(f"🔍 Should block: {should_block}")
+
+    if should_block:
+        print(f"::error::Code review blocked: {reason}")
+        sys.exit(1)
+    else:
+        print("::notice::✅ Code review passed successfully")
+        sys.exit(0)
+
+except Exception as e:
+    print(f"::error::Failed to parse results: {e}")
+    sys.exit(1)
+EOF
+
+          uv run python check_results.py

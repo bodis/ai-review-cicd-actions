@@ -6,11 +6,78 @@ import os
 import sys
 import json
 import argparse
+import subprocess
 from pathlib import Path
+from typing import Tuple
 
 from lib.config_manager import ConfigManager
 from lib.orchestrator import ReviewOrchestrator
 from lib.github_reporter import GitHubReporter
+
+
+def validate_environment() -> Tuple[str, str]:
+    """
+    Validate all required environment variables and tools.
+
+    Returns:
+        Tuple of (github_token, anthropic_api_key)
+
+    Raises:
+        SystemExit: If validation fails
+    """
+    errors = []
+
+    # Validate GitHub token
+    github_token = os.getenv('GITHUB_TOKEN')
+    if not github_token:
+        errors.append("❌ GITHUB_TOKEN environment variable is required")
+    elif not (github_token.startswith('ghp_') or github_token.startswith('ghs_')):
+        errors.append("❌ GITHUB_TOKEN appears invalid (should start with ghp_ or ghs_)")
+
+    # Validate Anthropic API key
+    anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+    if not anthropic_key:
+        errors.append(
+            "❌ ANTHROPIC_API_KEY environment variable is required\n"
+            "   Get your API key from: https://console.anthropic.com/\n"
+            "   Add to GitHub Secrets: Settings → Secrets → ANTHROPIC_API_KEY"
+        )
+    elif not anthropic_key.startswith('sk-ant-'):
+        errors.append("❌ ANTHROPIC_API_KEY appears invalid (should start with sk-ant-)")
+
+    # Test Claude Code CLI availability
+    try:
+        result = subprocess.run(
+            ['claude', '--version'],
+            capture_output=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            version = result.stdout.decode('utf-8').strip()
+            print(f"✅ Claude Code CLI found: {version}")
+        else:
+            errors.append("❌ Claude Code CLI is installed but not working")
+    except FileNotFoundError:
+        errors.append(
+            "❌ Claude Code CLI not found in PATH\n"
+            "   Install: curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash\n"
+            "   Or: npm install -g @anthropic-ai/claude-code"
+        )
+    except subprocess.TimeoutExpired:
+        errors.append("❌ Claude Code CLI check timed out")
+
+    # Print all errors
+    if errors:
+        print("=" * 80, file=sys.stderr)
+        print("ENVIRONMENT VALIDATION FAILED", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        for error in errors:
+            print(f"\n{error}", file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
+        sys.exit(1)
+
+    print("✅ Environment validation passed")
+    return github_token, anthropic_key
 
 
 def main():
@@ -61,11 +128,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Validate environment
-    github_token = os.getenv('GITHUB_TOKEN')
-    if not github_token:
-        print("Error: GITHUB_TOKEN environment variable is required", file=sys.stderr)
-        sys.exit(1)
+    # Validate environment (API keys and tools)
+    github_token, anthropic_key = validate_environment()
 
     try:
         # Load configuration
