@@ -70,22 +70,23 @@ jobs:
           fetch-depth: 0
           path: 'project'
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Install UV
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: ${{ inputs.python-version }}
-          cache: 'pip'
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ inputs.python-version }}
 
       - name: Install review system dependencies
         run: |
           cd .ai-review
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          uv sync
 
       - name: Install Python analysis tools
         if: inputs.enable-python-analysis
         run: |
-          pip install ruff pylint bandit mypy
+          uv pip install --system ruff pylint bandit mypy
 
       - name: Set up Node.js
         if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
@@ -121,7 +122,7 @@ jobs:
           COMPANY_CONFIG_TOKEN: ${{ secrets.COMPANY_CONFIG_TOKEN }}
         run: |
           cd .ai-review
-          python main.py \
+          uv run python main.py \
             --repo ${{ github.repository }} \
             --pr ${{ github.event.pull_request.number }} \
             --project-root ../project \

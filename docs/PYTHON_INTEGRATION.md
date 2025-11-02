@@ -14,7 +14,26 @@ The pipeline uses multiple Python analysis tools to catch different types of iss
 
 ### Minimal Setup
 
-Add to your project's workflow (`.github/workflows/code-review.yml`):
+**1. Ensure your project uses UV and pyproject.toml**
+
+Your project should have a `pyproject.toml` with dev dependencies:
+
+```toml
+[project]
+name = "my-project"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.104.0"]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.1.6",
+    "pylint>=3.0.0",
+    "bandit>=1.7.5",
+    "mypy>=1.7.0",
+]
+```
+
+**2. Add workflow to your project** (`.github/workflows/code-review.yml`):
 
 ```yaml
 name: AI Code Review
@@ -34,10 +53,14 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-That's it! The workflow will automatically:
-1. Install Python and analysis tools
-2. Run all configured checks
-3. Post findings as PR comments
+The workflow will automatically:
+1. Install UV (fast Python package manager)
+2. Set up Python using UV
+3. Install analysis tools (Ruff, Pylint, Bandit, mypy)
+4. Run all configured checks
+5. Post findings as PR comments
+
+**Note**: This review system itself uses UV. Your project can use any dependency manager (UV, Poetry, pip), but the review system will use UV internally.
 
 ## Analysis Tools
 

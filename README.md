@@ -162,9 +162,24 @@ Powered by Claude, specialized prompts for:
 
 ### Showcase: Python Project Setup
 
-This example demonstrates a complete setup for a Python project:
+This example demonstrates a complete setup for a modern Python project using UV:
 
-**1. Add Workflow File** (`.github/workflows/code-review.yml`):
+**1. Ensure pyproject.toml** (your project):
+
+```toml
+[project]
+name = "payment-api"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.104.0", "pydantic>=2.0"]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.1.6",
+    "pytest>=7.4.0",
+]
+```
+
+**2. Add Workflow File** (`.github/workflows/code-review.yml`):
 
 ```yaml
 name: AI Code Review
@@ -189,7 +204,7 @@ jobs:
       statuses: write
 ```
 
-**2. Optional Project Configuration** (`.github/ai-review-config.yml`):
+**3. Optional Project Configuration** (`.github/ai-review-config.yml`):
 
 ```yaml
 project_context:
@@ -207,7 +222,14 @@ blocking_rules:
     high: 3
 ```
 
-**3. Create a PR** - Reviews run automatically!
+**4. Create a PR** - Reviews run automatically!
+
+**What happens**:
+- GitHub Actions installs UV (2-3 seconds, cached)
+- UV installs Python + dependencies (5-10 seconds, cached)
+- Classical analysis runs (Ruff, Pylint, Bandit, mypy)
+- AI reviews analyze semantics (security, architecture, quality)
+- Results posted as PR comments with blocking if configured
 
 ### Other Languages
 
@@ -377,40 +399,72 @@ For detailed configuration options, see:
 
 ### Prerequisites
 
-- Python 3.11+
+- [UV](https://docs.astral.sh/uv/) - Fast Python package manager
+- Python 3.11+ (UV will install this)
 - Node.js 20+ (for JS/TS analysis)
-- Java 17+ (for Java analysis)
-- Maven or Gradle (for Java projects)
+- Java 17+ (for Java analysis, optional)
 
 ### Installation
 
 ```bash
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Clone repository
 git clone https://github.com/your-org/ai-review-cicd-actions.git
 cd ai-review-cicd-actions
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python and all dependencies (dev + prod)
+uv sync
 
-# Install development dependencies
-pip install pytest pytest-cov pytest-mock
-
-# Install static analysis tools
-pip install ruff pylint bandit mypy  # Python
-npm install -g eslint prettier       # JavaScript
+# Verify installation
+uv run python --version
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage
-pytest --cov=lib --cov-report=html
+uv run pytest --cov=lib --cov-report=html
 
 # Run specific test
-pytest tests/test_orchestrator.py -v
+uv run pytest tests/test_orchestrator.py -v
+
+# Run with markers
+uv run pytest -m unit  # Only unit tests
+```
+
+### Running Locally
+
+```bash
+# Run review on a PR
+uv run python main.py \
+  --repo owner/repo \
+  --pr 123 \
+  --output results.json
+
+# With custom config
+uv run python main.py \
+  --repo owner/repo \
+  --pr 123 \
+  --config .github/ai-review-config.yml \
+  --company-config github://your-org/policies/main/code-review.yml
+```
+
+### Adding Dependencies
+
+```bash
+# Add production dependency
+uv add pyyaml
+
+# Add dev dependency
+uv add --dev pytest
+
+# Update all dependencies
+uv lock --upgrade
 ```
 
 ### Project Structure
@@ -555,17 +609,7 @@ This is a **demonstration and research project** showcasing architectural patter
 - Security hardening and secrets management
 - Scale testing beyond small repositories
 
-### Research Contributions
-
-This project demonstrates:
-
-1. **Practical implementation** of multi-layer defense patterns from security research
-2. **Policy injection mechanisms** for encoding company/project constraints in AI prompts
-3. **Hybrid analysis approaches** combining rule-based and semantic review
-4. **Configuration precedence** patterns for organization-wide standardization
-5. **Extensibility patterns** allowing incremental addition of languages and tools
-
-For production deployments, consider established commercial solutions (SonarQube, Codacy, CodeRabbit, Qodo Merge) or adapt these patterns to your specific requirements.
+For **production** deployments, consider established commercial solutions (SonarQube, Codacy, CodeRabbit, Qodo Merge) or adapt these patterns to your specific requirements.
 
 ---
 
