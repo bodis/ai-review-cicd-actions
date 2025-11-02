@@ -472,7 +472,7 @@ class JavaAnalyzer(BaseAnalyzer):
         """Parse OWASP Dependency-Check JSON report."""
         findings = []
         try:
-            with open(json_file) as f:
+            with open(json_file, encoding='utf-8') as f:
                 data = json.load(f)
 
             for dependency in data.get('dependencies', []):

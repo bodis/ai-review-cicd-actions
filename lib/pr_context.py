@@ -3,6 +3,7 @@ PR Context Builder - Extract and prepare PR information for review.
 """
 import os
 import re
+from typing import Any
 
 from github import Github
 from github.PullRequest import PullRequest
@@ -135,7 +136,7 @@ class PRContextBuilder:
             change_types=change_types
         )
 
-    def _get_pr_metadata(self, pr: PullRequest) -> dict[str, any]:
+    def _get_pr_metadata(self, pr: PullRequest) -> dict[str, Any]:
         """Extract PR metadata."""
         return {
             'title': pr.title,
@@ -322,7 +323,7 @@ class PRContextBuilder:
                 return True
         return False
 
-    def calculate_change_impact(self, pr_context: PRContext) -> dict[str, any]:
+    def calculate_change_impact(self, pr_context: PRContext) -> dict[str, Any]:
         """
         Calculate impact score for PR changes.
 

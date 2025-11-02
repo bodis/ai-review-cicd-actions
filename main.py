@@ -2,20 +2,19 @@
 """
 Main entry point for AI Code Review System.
 """
-import os
-import sys
-import json
 import argparse
+import json
+import os
 import subprocess
+import sys
 from pathlib import Path
-from typing import Tuple
 
 from lib.config_manager import ConfigManager
-from lib.orchestrator import ReviewOrchestrator
 from lib.github_reporter import GitHubReporter
+from lib.orchestrator import ReviewOrchestrator
 
 
-def validate_environment() -> Tuple[str, str]:
+def validate_environment() -> tuple[str, str]:
     """
     Validate all required environment variables and tools.
 
@@ -50,7 +49,8 @@ def validate_environment() -> Tuple[str, str]:
         result = subprocess.run(
             ['claude', '--version'],
             capture_output=True,
-            timeout=5
+            timeout=5,
+            check=False
         )
         if result.returncode == 0:
             version = result.stdout.decode('utf-8').strip()
@@ -154,7 +154,7 @@ def main():
             output_path = Path(args.output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(results.to_dict(), f, indent=2)
 
             print(f"\nResults saved to: {output_path}")
@@ -186,9 +186,8 @@ def main():
         print(summary)
         print("=" * 80)
 
-        for i in [1,2,3,4,5,10]:
+        for _ in [1, 2, 3, 4, 5, 10]:
             print('relevant logs')
-        
 
         # Exit with error code if blocking
         if results.should_block:

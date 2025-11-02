@@ -32,7 +32,7 @@ class AIReviewEngine:
     def run_claude_review(
         self,
         prompt: str,
-        max_retries: int = None
+        max_retries: int | None = None
     ) -> dict[str, Any]:
         """
         Execute Claude Code with validation and retry logic.
@@ -90,14 +90,8 @@ class AIReviewEngine:
             RuntimeError: If Claude Code fails or times out
             FileNotFoundError: If Claude Code CLI is not installed
         """
-        # Write prompt to temporary file
-        prompt_file = self.project_root / '.claude_prompt_temp.txt'
-
         try:
-            with open(prompt_file, 'w', encoding='utf-8') as f:
-                f.write(prompt)
-
-            # Debug: Also save to a debug file (useful for troubleshooting)
+            # Debug: Save prompt to debug file if enabled
             if os.getenv('DEBUG_AI_PROMPTS'):
                 debug_file = self.project_root / f'.claude_debug_{int(time.time())}.txt'
                 with open(debug_file, 'w', encoding='utf-8') as f:
@@ -107,7 +101,7 @@ class AIReviewEngine:
             # Build command with debug flags if enabled
             claude_cmd = [
                 'claude',
-                '--print',  # Non-interactive mode (essential for CI/CD!)
+                '-p', prompt,  # Pass prompt directly via -p flag
                 '--output-format', 'json',  # Structured output
                 '--dangerously-skip-permissions',  # Skip permission prompts in CI
             ]
@@ -116,8 +110,6 @@ class AIReviewEngine:
             if os.getenv('DEBUG_AI_PROMPTS'):
                 claude_cmd.append('--verbose')
                 print("   🐛 Debug mode enabled, using --verbose flag")
-
-            claude_cmd.append(str(prompt_file))  # Input prompt file
 
             # Execute Claude Code with proper CI/CD flags
             result = subprocess.run(
@@ -172,12 +164,8 @@ class AIReviewEngine:
         except FileNotFoundError as e:
             raise RuntimeError(
                 "Claude Code CLI not found in PATH. "
-                "Install: curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash"
+                "Install: npm install -g @anthropic-ai/claude-code"
             ) from e
-        finally:
-            # Clean up temporary file
-            if prompt_file.exists():
-                prompt_file.unlink()
 
     def _validate_json_output(self, output: str) -> dict[str, Any]:
         """
@@ -214,9 +202,17 @@ class AIReviewEngine:
 
             # Check if it's Claude Code CLI JSON wrapper format
             if isinstance(parsed, dict):
-                # Format 1: CLI wrapper with content array
+                # Format 1a: CLI wrapper with "result" field (newer CLI format)
+                if 'result' in parsed and isinstance(parsed['result'], str):
+                    print("   🔍 Detected CLI JSON wrapper (result field), extracting content...")
+                    claude_text = parsed['result']
+                    print(f"   📝 Extracted Claude response ({len(claude_text)} chars)")
+                    # Recursively parse the extracted text
+                    return self._parse_claude_response(claude_text)
+
+                # Format 1b: CLI wrapper with content array (older format)
                 if 'content' in parsed and isinstance(parsed['content'], list):
-                    print("   🔍 Detected CLI JSON wrapper, extracting content...")
+                    print("   🔍 Detected CLI JSON wrapper (content array), extracting content...")
                     # Extract text from first content block
                     if len(parsed['content']) > 0 and 'text' in parsed['content'][0]:
                         claude_text = parsed['content'][0]['text']
@@ -358,7 +354,7 @@ Please provide a corrected response with valid JSON in this exact format:
         if not prompt_path.exists():
             raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
 
-        with open(prompt_path) as f:
+        with open(prompt_path, encoding='utf-8') as f:
             base_prompt = f.read()
 
         # Apply injections

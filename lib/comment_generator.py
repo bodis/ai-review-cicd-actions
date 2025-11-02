@@ -122,7 +122,12 @@ Output only the comment, no preamble."""
             messages=[{"role": "user", "content": prompt}]
         )
 
-        comment = response.content[0].text.strip()
+        # Extract text from response, handling different content block types
+        first_block = response.content[0]
+        if hasattr(first_block, 'text'):
+            comment = first_block.text.strip()
+        else:
+            comment = str(first_block).strip()
 
         # Track usage
         self._log_usage(response.usage, "inline_comment")
@@ -198,8 +203,12 @@ etc."""
             messages=[{"role": "user", "content": prompt}]
         )
 
-        # Parse batch response
-        batch_text = response.content[0].text
+        # Parse batch response, handling different content block types
+        first_block = response.content[0]
+        if hasattr(first_block, 'text'):
+            batch_text = first_block.text
+        else:
+            batch_text = str(first_block)
         comments = self._parse_batch_response(batch_text, len(findings))
 
         # Track usage
@@ -302,7 +311,12 @@ Output only the comment, no preamble."""
             messages=[{"role": "user", "content": prompt}]
         )
 
-        summary = response.content[0].text.strip()
+        # Extract text from response, handling different content block types
+        first_block = response.content[0]
+        if hasattr(first_block, 'text'):
+            summary = first_block.text.strip()
+        else:
+            summary = str(first_block).strip()
 
         # Track usage
         self._log_usage(response.usage, "summary_comment")

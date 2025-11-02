@@ -167,11 +167,10 @@ class ConfigManager:
             return {}
 
         try:
-            with open(path) as f:
+            with open(path, encoding='utf-8') as f:
                 if path.endswith('.json'):
                     return json.load(f)
-                else:
-                    return yaml.safe_load(f) or {}
+                return yaml.safe_load(f) or {}
         except Exception as e:
             raise ConfigurationError(f"Failed to load project config from {path}: {e}") from e
 
@@ -196,12 +195,11 @@ class ConfigManager:
                 return self._fetch_from_url(source)
             elif source.startswith('file://'):
                 file_path = source.replace('file://', '')
-                with open(file_path) as f:
+                with open(file_path, encoding='utf-8') as f:
                     return yaml.safe_load(f) or {}
-            else:
-                # Assume it's a file path
-                with open(source) as f:
-                    return yaml.safe_load(f) or {}
+            # Assume it's a file path
+            with open(source, encoding='utf-8') as f:
+                return yaml.safe_load(f) or {}
         except Exception as e:
             print(f"Warning: Failed to load company config from {source}: {e}")
             return {}
