@@ -1,0 +1,59 @@
+# Example: Company-Level Policies
+# This file would be hosted centrally and referenced by all projects
+
+coding_standards:
+  python:
+    - "Use type hints for all function signatures"
+    - "Maximum function length: 50 lines"
+    - "All public APIs must have docstrings with examples"
+    - "Use Black formatting style"
+    - "Prefer dataclasses over plain dictionaries for structured data"
+
+  javascript:
+    - "Use ES6+ syntax (no var, use const/let)"
+    - "Async operations must use async/await, not callbacks"
+    - "Use TypeScript for new code"
+    - "Follow Airbnb style guide"
+    - "All exported functions must have JSDoc comments"
+
+  general:
+    - "No TODO comments without a tracking ticket reference"
+    - "All magic numbers must be named constants"
+    - "Error messages must be user-friendly and actionable"
+
+security_requirements:
+  - "All API endpoints must have authentication"
+  - "Input validation required for all user-provided data"
+  - "Secrets must be stored in environment variables or secret management system"
+  - "Database queries must use parameterized statements"
+  - "All external API calls must have timeout and retry logic"
+  - "Sensitive data must not appear in logs"
+  - "Use HTTPS for all external communications"
+  - "Implement rate limiting on public endpoints"
+
+architectural_rules:
+  - "Backend must not import from frontend code"
+  - "Business logic only in service layer, not in controllers"
+  - "Direct database access only through repository layer"
+  - "Use dependency injection for testability"
+  - "Follow SOLID principles"
+  - "Keep controllers thin, services focused"
+
+documentation_requirements:
+  - "All public APIs require comprehensive documentation"
+  - "Complex algorithms need explanatory comments"
+  - "Update CHANGELOG.md for user-facing changes"
+  - "README must be updated when adding new features"
+  - "Architecture Decision Records (ADRs) for significant changes"
+
+testing_requirements:
+  - "Minimum 80% code coverage for new code"
+  - "All bug fixes must include a regression test"
+  - "Critical paths must have integration tests"
+  - "Public APIs must have contract tests"
+
+performance_requirements:
+  - "Database queries must use indexes on lookup columns"
+  - "API endpoints must respond within 200ms (p95)"
+  - "Implement pagination for list endpoints"
+  - "Use caching for expensive operations"

@@ -1,0 +1,157 @@
+name: Reusable AI Code Review
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      config-file:
+        description: 'Path to project configuration file'
+        required: false
+        type: string
+        default: '.github/ai-review-config.yml'
+      company-config-url:
+        description: 'URL to company-level configuration'
+        required: false
+        type: string
+      enable-js-analysis:
+        description: 'Enable JavaScript/TypeScript analysis'
+        required: false
+        type: boolean
+        default: true
+      enable-python-analysis:
+        description: 'Enable Python analysis'
+        required: false
+        type: boolean
+        default: true
+      fail-on-blocking:
+        description: 'Fail workflow if review blocks PR'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+      ANTHROPIC_API_KEY:
+        required: false
+      COMPANY_CONFIG_TOKEN:
+        description: 'Token for accessing company configuration'
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  ai-code-review:
+    runs-on: ubuntu-latest
+    name: AI Code Review
+
+    steps:
+      - name: Checkout review system
+        uses: actions/checkout@v4
+        with:
+          repository: 'your-org/ai-review-cicd-actions'  # Update with actual repo
+          ref: 'main'
+          path: '.ai-review'
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: 'project'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+
+      - name: Install review system dependencies
+        run: |
+          cd .ai-review
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Python analysis tools
+        if: inputs.enable-python-analysis
+        run: |
+          pip install ruff pylint bandit mypy
+
+      - name: Set up Node.js
+        if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install project dependencies
+        if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
+        run: |
+          cd project
+          npm ci || npm install
+
+      - name: Prepare configuration
+        id: config
+        run: |
+          CONFIG_ARG=""
+          if [ -f "project/${{ inputs.config-file }}" ]; then
+            CONFIG_ARG="--config project/${{ inputs.config-file }}"
+          fi
+          echo "config_arg=$CONFIG_ARG" >> $GITHUB_OUTPUT
+
+          COMPANY_CONFIG_ARG=""
+          if [ -n "${{ inputs.company-config-url }}" ]; then
+            COMPANY_CONFIG_ARG="--company-config ${{ inputs.company-config-url }}"
+          fi
+          echo "company_config_arg=$COMPANY_CONFIG_ARG" >> $GITHUB_OUTPUT
+
+      - name: Run AI Code Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COMPANY_CONFIG_TOKEN: ${{ secrets.COMPANY_CONFIG_TOKEN }}
+        run: |
+          cd .ai-review
+          python main.py \
+            --repo ${{ github.repository }} \
+            --pr ${{ github.event.pull_request.number }} \
+            --project-root ../project \
+            --output ../review-results.json \
+            ${{ steps.config.outputs.config_arg }} \
+            ${{ steps.config.outputs.company_config_arg }}
+
+      - name: Upload review results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ai-review-results
+          path: review-results.json
+          retention-days: 30
+
+      - name: Check review status
+        if: inputs.fail-on-blocking
+        run: |
+          if [ -f review-results.json ]; then
+            SHOULD_BLOCK=$(python -c "import json; print(json.load(open('review-results.json'))['should_block'])")
+            if [ "$SHOULD_BLOCK" = "True" ]; then
+              REASON=$(python -c "import json; print(json.load(open('review-results.json')).get('blocking_reason', 'Unknown'))")
+              echo "::error::Code review blocked: $REASON"
+              exit 1
+            fi
+          fi
+
+      - name: Post review summary
+        if: always()
+        run: |
+          if [ -f review-results.json ]; then
+            echo "✅ Review results posted to PR #${{ github.event.pull_request.number }}"
+          fi

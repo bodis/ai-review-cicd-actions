@@ -1,0 +1,72 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  ai-code-review:
+    runs-on: ubuntu-latest
+    name: AI-Driven Code Review
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better context
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Node.js (for JS/TS analysis)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+        if: hashFiles('package.json') != ''
+
+      - name: Install JS dependencies
+        run: npm ci
+        if: hashFiles('package.json') != ''
+
+      - name: Run AI Code Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # For Claude API if needed
+        run: |
+          python main.py \
+            --repo ${{ github.repository }} \
+            --pr ${{ github.event.pull_request.number }} \
+            --output review-results.json
+
+      - name: Upload review results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: review-results
+          path: review-results.json
+
+      - name: Check review status
+        if: always()
+        run: |
+          if [ -f review-results.json ]; then
+            # Extract should_block from JSON
+            SHOULD_BLOCK=$(python -c "import json; print(json.load(open('review-results.json'))['should_block'])")
+            if [ "$SHOULD_BLOCK" = "True" ]; then
+              echo "::error::Code review found blocking issues"
+              exit 1
+            fi
+          fi

@@ -1,0 +1,89 @@
+# Default Configuration for AI Code Review System
+# This file shows all available configuration options
+
+# Review aspects to execute
+review_aspects:
+  # Classical static analysis for Python
+  - name: python_static_analysis
+    enabled: true
+    type: classical
+    tools:
+      - ruff      # Fast Python linter
+      - pylint    # Comprehensive linter
+      - bandit    # Security scanner
+      - mypy      # Type checker
+    parallel: true  # Run in parallel with other aspects
+
+  # Classical static analysis for JavaScript/TypeScript
+  - name: javascript_static_analysis
+    enabled: true
+    type: classical
+    tools:
+      - eslint
+      - prettier
+      - tsc
+    parallel: true
+
+  # AI-driven security review
+  - name: security_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/security-review.md
+    parallel: false  # Run sequentially to share context
+
+  # AI-driven architecture review
+  - name: architecture_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/architecture-review.md
+    parallel: false
+
+  # AI-driven code quality review
+  - name: code_quality_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/base-review.md
+    parallel: false
+
+  # AI-driven performance review
+  - name: performance_review
+    enabled: false  # Disabled by default, enable as needed
+    type: ai
+    prompt_file: prompts/performance-review.md
+    parallel: false
+
+  # AI-driven testing review
+  - name: testing_review
+    enabled: false  # Disabled by default
+    type: ai
+    prompt_file: prompts/testing-review.md
+    parallel: false
+
+# Blocking rules - determine when to block PR merge
+blocking_rules:
+  block_on_critical: true  # Always block if critical issues found
+  block_on_high: false     # Don't block on high severity alone
+
+  # Maximum allowed findings by severity before blocking
+  max_findings:
+    critical: 0   # Zero tolerance for critical issues
+    high: 5       # Allow up to 5 high severity issues
+    medium: 20    # Allow up to 20 medium severity issues
+
+# GitHub integration settings
+github:
+  post_summary_comment: true
+  post_inline_comments: true
+  update_status_check: true
+
+  # Minimum severity for inline comments (critical, high, medium, low, info)
+  inline_comment_severity_threshold: high
+
+  # Create GitHub review event (APPROVE, REQUEST_CHANGES, COMMENT)
+  create_review_event: true
+
+# Performance settings
+performance:
+  max_parallel_reviews: 4
+  timeout_per_review: 300  # seconds
+  max_diff_size: 50000     # characters
