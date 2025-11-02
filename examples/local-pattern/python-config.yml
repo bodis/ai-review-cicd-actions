@@ -9,6 +9,10 @@ anthropic:
 performance:
   ai_review_max_retries: 1  # Number of retries for AI reviews (default: 1)
 
+# Filtering settings
+filtering:
+  only_changed_lines: true  # Only report findings on changed lines (recommended)
+
 review_aspects:
   # Static analysis tools for Python
   - name: python_static_analysis

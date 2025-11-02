@@ -1,6 +1,15 @@
 # Default Configuration for AI Code Review System
 # This file shows all available configuration options
 
+# Anthropic API configuration (optional)
+# Override the Claude model used for AI reviews
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Default: Claude Sonnet 4.5 (latest)
+  # Other available models:
+  # - claude-sonnet-4-5-20250929 (Claude Sonnet 4.5 - latest, recommended)
+  # - claude-sonnet-4-20250514 (Claude Sonnet 4)
+  # - claude-opus-4-20250514 (Claude Opus 4 - most capable)
+
 # Review aspects to execute
 review_aspects:
   # Classical static analysis for Python
@@ -88,3 +97,9 @@ performance:
   timeout_per_review: 300  # seconds
   max_diff_size: 50000     # characters
   ai_review_max_retries: 1  # Number of retries for AI reviews (default: 1, no retries)
+
+# Filtering settings
+filtering:
+  # Only report findings on lines that were changed in the PR
+  # This prevents reporting pre-existing issues in unchanged code
+  only_changed_lines: true  # Recommended: true (default)

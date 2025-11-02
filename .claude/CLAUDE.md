@@ -94,6 +94,22 @@ GitHub Reporting (comments, status checks)
 
 AI reviews are language-agnostic and work across all languages.
 
+## Recent Features
+
+### Claude Model Configuration
+- Configurable model selection via `anthropic.model` in config
+- Default: `claude-sonnet-4-5-20250929` (Sonnet 4.5)
+- See `docs/AI_CONFIGURATION.md` for model comparison and costs
+
+### Changed Lines Filtering
+- `filtering.only_changed_lines: true` (default) - Only report findings on changed lines
+- Implemented in `lib/orchestrator.py`
+- Reduces noise from pre-existing issues in unchanged code
+
+### Configurable AI Retries
+- `performance.ai_review_max_retries: 1` (default) - Fail fast in CI/CD
+- Implemented in `lib/ai_review.py`
+
 ## Configuration System
 
 ### Three-Level Precedence
@@ -110,6 +126,17 @@ AI reviews are language-agnostic and work across all languages.
 
 **Project Config** (`.github/ai-review-config.yml`):
 ```yaml
+# Anthropic API configuration (optional)
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Choose Claude model for AI reviews
+
+# Performance and filtering settings
+performance:
+  ai_review_max_retries: 1  # Retry attempts for AI reviews (default: 1)
+
+filtering:
+  only_changed_lines: true  # Only report findings on changed lines (recommended)
+
 project_context:
   name: "Payment API"
   architecture: "FastAPI Microservice"

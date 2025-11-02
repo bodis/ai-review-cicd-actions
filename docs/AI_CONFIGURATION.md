@@ -191,6 +191,83 @@ For detailed setup, see [Claude Code Setup Guide](CLAUDE_CODE_SETUP.md).
 
 ## Configuration
 
+### Claude Model Selection
+
+**NEW**: Choose which Claude model to use for AI reviews:
+
+```yaml
+# Anthropic API configuration
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Default: Claude Sonnet 4.5 (latest)
+  # Other available models:
+  # - claude-sonnet-4-5-20250929 (Claude Sonnet 4.5 - latest, recommended)
+  # - claude-sonnet-4-20250514 (Claude Sonnet 4)
+  # - claude-opus-4-20250514 (Claude Opus 4 - most capable, higher cost)
+```
+
+**Model Comparison**:
+
+| Model | Best For | Cost (per 1M tokens) | Speed | Quality |
+|-------|----------|---------------------|-------|---------|
+| **Sonnet 4.5** | Most projects (default) | $3 input / $15 output | Fast | Excellent |
+| **Sonnet 4** | Standard reviews | $3 input / $15 output | Fast | Very Good |
+| **Opus 4** | Critical/complex code | $15 input / $75 output | Medium | Best |
+
+**Cost Impact**:
+- Average PR (~500 lines): 10-15K tokens input, 2-3K tokens output
+- **Sonnet 4.5**: ~$0.08 per PR
+- **Opus 4**: ~$0.38 per PR (4.75x more expensive)
+
+**Recommendations**:
+- **Use Sonnet 4.5** (default): Best balance for most projects
+- **Use Opus 4**: Critical infrastructure, security-sensitive code, complex architectural reviews
+- **Location**: Configure in `.github/ai-review-config.yml` or `config/default-config.yml`
+
+### Changed Lines Filtering
+
+**NEW**: Only report findings on lines that were actually changed in the PR:
+
+```yaml
+filtering:
+  only_changed_lines: true  # Recommended: true (default)
+```
+
+**Benefits**:
+- **Reduces noise**: Stops reporting pre-existing issues in unchanged code
+- **Focuses reviews**: Only shows issues introduced by this specific PR
+- **Prevents blame**: Developers don't get flagged for old code they didn't touch
+- **Faster reviews**: AI only analyzes changed code, saving tokens and time
+
+**How it works**:
+1. Extracts changed line ranges from PR diff (`lib/orchestrator.py:287-302`)
+2. Filters all findings (static analysis + AI) to only changed lines
+3. Pre-existing issues in unchanged code are ignored
+
+**When to disable**:
+```yaml
+filtering:
+  only_changed_lines: false  # Report all findings (useful for new projects)
+```
+
+### AI Retry Configuration
+
+**NEW**: Control retry attempts when AI reviews fail to return valid JSON:
+
+```yaml
+performance:
+  ai_review_max_retries: 1  # Default: 1 (fail fast)
+  # Increase for flaky network conditions: 2-3
+```
+
+**Default behavior**: Fail fast (1 attempt) to save costs and time in CI/CD
+
+**When to increase**:
+- Flaky network conditions
+- Rate limiting issues
+- Testing/development environments
+
+**Implementation**: `lib/ai_review.py:32-49`
+
 ### Enable/Disable Review Aspects
 
 Control which AI reviews run in `.github/ai-review-config.yml`:

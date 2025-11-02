@@ -476,7 +476,120 @@ class ReviewOrchestrator:
             if analyzer.is_available():
                 findings.extend(analyzer.run_analysis(changed_file_paths))
 
+        # Filter findings to only include lines changed in the PR (if enabled)
+        if self.config.get('filtering', {}).get('only_changed_lines', True):
+            filtered_findings = self._filter_findings_by_diff(findings, pr_context)
+            print(f"   Filtered {len(findings)} findings → {len(filtered_findings)} on changed lines")
+            return filtered_findings
         return findings
+
+    def _filter_findings_by_diff(
+        self,
+        findings: list[Finding],
+        pr_context: PRContext
+    ) -> list[Finding]:
+        """
+        Filter findings to only include lines that were changed in the PR.
+
+        Args:
+            findings: All findings from static analysis
+            pr_context: PR context with file changes
+
+        Returns:
+            Filtered findings only on changed lines
+        """
+        # Build a map of file -> set of changed line numbers
+        changed_lines_map: dict[str, set[int]] = {}
+
+        for file_change in pr_context.changed_files:
+            if not file_change.patch:
+                # If no patch (e.g., binary file), skip filtering for this file
+                # Include all findings for files without patches
+                continue
+
+            changed_lines = self._extract_changed_lines_from_patch(file_change.patch)
+            # Normalize path - handle both absolute and relative paths
+            normalized_path = file_change.path.lstrip('./')
+            changed_lines_map[normalized_path] = changed_lines
+
+        # Filter findings
+        filtered_findings = []
+        for finding in findings:
+            # Normalize the finding file path
+            finding_path = finding.file_path.lstrip('./')
+            # Remove absolute path prefix if present
+            if '/' in finding_path:
+                # Try to extract relative path
+                parts = finding_path.split('/')
+                # Look for common patterns like /home/runner/work/repo/repo/file.py
+                for i in range(len(parts)):
+                    potential_path = '/'.join(parts[i:])
+                    if potential_path in changed_lines_map:
+                        finding_path = potential_path
+                        break
+                else:
+                    # If no match found, use the last component as fallback
+                    finding_path = '/'.join(parts[-2:]) if len(parts) >= 2 else parts[-1]
+
+            # Check if this file has changed lines info
+            if finding_path not in changed_lines_map:
+                # File not in diff (shouldn't happen since we only analyze changed files)
+                # but include it to be safe
+                filtered_findings.append(finding)
+                continue
+
+            # Check if the finding is on a changed line
+            if finding.line_number is None:
+                # File-level finding, include it
+                filtered_findings.append(finding)
+            elif finding.line_number in changed_lines_map[finding_path]:
+                # Finding is on a changed line
+                filtered_findings.append(finding)
+            # else: Finding is on an unchanged line, skip it
+
+        return filtered_findings
+
+    def _extract_changed_lines_from_patch(self, patch: str) -> set[int]:
+        """
+        Extract line numbers that were added or modified from a git patch.
+
+        Args:
+            patch: Git diff patch string
+
+        Returns:
+            Set of line numbers that were changed
+        """
+        import re
+
+        changed_lines = set()
+        current_line = 0  # Initialize to 0, will be set by chunk header
+
+        # Parse unified diff format
+        # Look for chunk headers like: @@ -10,7 +10,8 @@
+        # This means: old file starts at line 10 (7 lines), new file starts at line 10 (8 lines)
+        for line in patch.split('\n'):
+            # Find chunk header
+            if line.startswith('@@'):
+                match = re.match(r'@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@', line)
+                if match:
+                    start_line = int(match.group(1))
+                    current_line = start_line
+                continue
+
+            # Only process lines if we've seen a chunk header (current_line > 0)
+            if current_line == 0:
+                continue
+
+            # Track added/modified lines (lines starting with + but not ++)
+            if line.startswith('+') and not line.startswith('+++'):
+                changed_lines.add(current_line)
+                current_line += 1
+            elif line.startswith(' '):
+                # Context line, advance line number
+                current_line += 1
+            # Lines starting with - are deletions, don't advance line number
+
+        return changed_lines
 
     def _run_ai_review(
         self,

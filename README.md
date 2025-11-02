@@ -752,6 +752,48 @@ This demonstration project is production-ready for its research scope. Optional 
 
 ---
 
+## ✨ Latest Features
+
+### 🎯 Claude Model Selection
+Choose which Claude model to use for AI reviews in your configuration:
+
+```yaml
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Claude Sonnet 4.5 (recommended)
+  # Other options:
+  # - claude-sonnet-4-20250514 (Claude Sonnet 4)
+  # - claude-opus-4-20250514 (Claude Opus 4 - most capable, higher cost)
+```
+
+**Why this matters**: Different projects have different needs. Critical infrastructure code might justify Opus 4's higher accuracy, while most projects get excellent results with Sonnet 4.5 at lower cost.
+
+### 🎯 Changed Lines Filtering
+Only report findings on lines actually changed in the PR:
+
+```yaml
+filtering:
+  only_changed_lines: true  # Recommended: true (default)
+```
+
+**Why this matters**:
+- **Reduces noise**: No complaints about pre-existing issues in unchanged code
+- **Focuses reviews**: Only see issues introduced by this specific PR
+- **Prevents frustration**: Developers aren't blamed for old code they didn't touch
+
+**How it works**: Extracts changed line ranges from the PR diff and filters all findings (static analysis + AI) to only report issues on those lines.
+
+### ⚙️ Configurable AI Retries
+Control retry behavior when AI reviews fail:
+
+```yaml
+performance:
+  ai_review_max_retries: 1  # Default: 1 (fail fast)
+```
+
+**Default**: Fail fast to save costs and time in CI/CD. Increase to 2-3 for flaky network conditions.
+
+---
+
 ## Acknowledgments
 
 This project was researched and developed with AI assistance (Claude Code), implementing multi-layer defense patterns to address the systemic issues identified in AI-assisted development research.
