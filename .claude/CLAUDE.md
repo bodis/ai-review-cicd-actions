@@ -241,19 +241,17 @@ python --version
 pytest --version
 ```
 
-**IMPORTANT for AI Assistants**: This project uses a local virtual environment (`.venv/`). Always activate the venv before running Python commands:
-- Use `source .venv/bin/activate` before running commands
-- OR prefix commands with `.venv/bin/python` instead of using `uv run`
-- The venv is always used for development work
+**IMPORTANT for AI Assistants**: This project uses UV for dependency management. Two equivalent approaches:
+
+1. **UV run (recommended)**: `uv run pytest` - UV manages the venv automatically
+2. **Manual venv**: `source .venv/bin/activate && pytest` - Traditional Python workflow
+
+Both work identically. Use `uv run` for consistency with project documentation.
 
 ### Running Locally
 
 ```bash
-# Activate venv first
-source .venv/bin/activate
-
-# Run the main script
-python main.py \
+uv run python main.py \
   --repo owner/repo \
   --pr 123 \
   --config .github/ai-review-config.yml \
@@ -264,14 +262,10 @@ python main.py \
 ### Testing
 
 ```bash
-# Activate venv first
-source .venv/bin/activate
-
-# Run tests
-pytest                          # Run all tests
-pytest --cov=lib --cov-report=html  # With coverage
-pytest tests/test_models.py -v  # Specific test file
-pytest -m unit                  # Only unit tests
+uv run pytest                          # Run all tests
+uv run pytest --cov=lib --cov-report=html  # With coverage (optional)
+uv run pytest tests/test_models.py -v  # Specific test file
+uv run pytest -m unit                  # Only unit tests
 ```
 
 ### Adding Dependencies

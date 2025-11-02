@@ -6,7 +6,8 @@
       "Bash(tree:*)",
       "Bash(uv lock:*)",
       "Bash(source .venv/bin/activate)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(uv run pytest:*)"
     ],
     "deny": [],
     "ask": []

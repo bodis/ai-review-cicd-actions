@@ -427,7 +427,7 @@ uv run python --version
 # Run all tests
 uv run pytest
 
-# Run with coverage
+# Run with coverage (optional for demo)
 uv run pytest --cov=lib --cov-report=html
 
 # Run specific test

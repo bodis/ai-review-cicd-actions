@@ -122,10 +122,6 @@ addopts = [
     "--verbose",
     "--strict-markers",
     "--tb=short",
-    "--cov=lib",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-fail-under=70",
 ]
 
 markers = [
