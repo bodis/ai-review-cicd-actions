@@ -1,6 +1,5 @@
-# Self-Review Workflow
-# This is the ACTUAL recommended pattern for using this review system
-# Copy this to your project's .github/workflows/ai-review.yml
+# Local Pattern: Python Project Self-Review
+# Copy this AI review system into your project and run it locally
 
 name: AI Code Review
 
@@ -8,7 +7,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# Prevent multiple runs on rapid pushes
 concurrency:
   group: ai-review-${{ github.ref }}
   cancel-in-progress: true
@@ -21,14 +19,13 @@ permissions:
 jobs:
   ai-code-review:
     runs-on: ubuntu-latest
-    name: AI-Driven Code Review
     timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better context
+          fetch-depth: 0
 
       - name: Install UV
         uses: astral-sh/setup-uv@v3
@@ -38,7 +35,7 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: uv sync
 
       - name: Install Claude Code CLI
@@ -52,44 +49,28 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [[ -z "$ANTHROPIC_API_KEY" ]]; then
-            echo "::error::ANTHROPIC_API_KEY secret is not set"
-            echo "::error::Add it in: Settings → Secrets → Actions → New secret"
+            echo "::error::ANTHROPIC_API_KEY not set"
             exit 1
           fi
-
-          if [[ ! $ANTHROPIC_API_KEY =~ ^sk-ant- ]]; then
-            echo "::error::Invalid ANTHROPIC_API_KEY format (should start with sk-ant-)"
-            exit 1
-          fi
-
-          echo "Test" | claude --print "Say 'OK'" || {
-            echo "::error::Claude Code authentication failed"
-            exit 1
-          }
-
-          echo "✅ Environment validated"
+          echo "Test" | claude --print "Say 'OK'" || exit 1
 
       - name: Run AI Code Review
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Auto-provided by GitHub Actions
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # Add to repo secrets
-          CLAUDE_CODE_HEADLESS: '1'  # Disable interactive features
-          NO_COLOR: '1'  # Disable ANSI colors
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_HEADLESS: '1'
+          NO_COLOR: '1'
         run: |
           uv run python main.py \
             --repo ${{ github.repository }} \
             --pr ${{ github.event.pull_request.number }} \
-            --config self/config.yml \
+            --config .github/ai-review-config.yml \
             --output review-results.json
 
-      - name: Upload review results
+      - name: Upload results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: review-results-pr-${{ github.event.pull_request.number }}
           path: review-results.json
           retention-days: 30
-
-      # Note: No need for manual result checking!
-      # main.py already exits with code 1 if review blocks, 0 if passes
-      # GitHub Actions automatically fails the workflow on non-zero exit code

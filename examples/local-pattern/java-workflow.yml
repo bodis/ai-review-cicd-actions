@@ -1,0 +1,79 @@
+# Local Pattern: Java/Spring Boot Project Self-Review
+# Copy this AI review system into your project and run it locally
+
+name: AI Code Review - Java
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  ai-code-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean compile -DskipTests
+
+      - name: Run Static Analysis
+        run: |
+          mvn spotbugs:spotbugs
+          mvn pmd:pmd
+          mvn checkstyle:checkstyle
+        continue-on-error: true
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install AI review dependencies
+        run: uv sync
+
+      - name: Install Claude Code CLI
+        run: |
+          curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          claude --version
+
+      - name: Run AI Code Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_HEADLESS: '1'
+          NO_COLOR: '1'
+        run: |
+          uv run python main.py \
+            --repo ${{ github.repository }} \
+            --pr ${{ github.event.pull_request.number }} \
+            --config .github/ai-review-config.yml \
+            --output review-results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: review-results-pr-${{ github.event.pull_request.number }}
+          path: review-results.json
+          retention-days: 30

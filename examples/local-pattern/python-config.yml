@@ -1,0 +1,50 @@
+# Python Project Configuration (Local Pattern)
+# Place at: .github/ai-review-config.yml
+
+review_aspects:
+  # Static analysis tools for Python
+  - name: python_static_analysis
+    enabled: true
+    type: classical
+    parallel: true
+    tools:
+      - ruff      # Fast Python linter
+      - pylint    # Comprehensive code checker
+      - bandit    # Security issue scanner
+      - mypy      # Type checker
+
+  # AI-powered security review
+  - name: security_review
+    enabled: true
+    type: ai
+    parallel: false
+    prompt_file: prompts/security-review.md
+
+  # AI-powered architecture review
+  - name: architecture_review
+    enabled: true
+    type: ai
+    parallel: false
+    prompt_file: prompts/architecture-review.md
+
+  # AI-powered code quality review
+  - name: code_quality_review
+    enabled: true
+    type: ai
+    parallel: false
+    prompt_file: prompts/base-review.md
+
+# Blocking rules
+blocking_rules:
+  block_on_critical: true
+  block_on_high: false
+  max_findings:
+    critical: 0
+    high: 5
+
+# GitHub integration
+github:
+  post_summary_comment: true
+  post_inline_comments: true
+  inline_comment_severity_threshold: high
+  update_status_check: true

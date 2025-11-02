@@ -1,0 +1,55 @@
+# Project Configuration (Reusable Pattern)
+# Place at: .github/ai-review-config.yml
+# Used by both local and reusable patterns
+
+project_context:
+  name: "Your Project Name"
+  architecture: "FastAPI Microservice" # or "Spring Boot", "Express.js", etc.
+
+project_constraints:
+  - "All API endpoints must have authentication"
+  - "Use specific error handling patterns"
+  # Add your project-specific rules here
+
+review_aspects:
+  # Adjust based on your language (Python, Java, JS/TS)
+  - name: python_static_analysis  # or java_static_analysis, js_static_analysis
+    enabled: true
+    type: classical
+    parallel: true
+    tools:
+      - ruff
+      - pylint
+      - bandit
+      - mypy
+
+  - name: security_review
+    enabled: true
+    type: ai
+    parallel: false
+    prompt_file: prompts/security-review.md
+
+  - name: architecture_review
+    enabled: true
+    type: ai
+    parallel: false
+    prompt_file: prompts/architecture-review.md
+
+  - name: code_quality_review
+    enabled: true
+    type: ai
+    parallel: false
+    prompt_file: prompts/base-review.md
+
+blocking_rules:
+  block_on_critical: true
+  block_on_high: false
+  max_findings:
+    critical: 0
+    high: 5
+
+github:
+  post_summary_comment: true
+  post_inline_comments: true
+  inline_comment_severity_threshold: high
+  update_status_check: true

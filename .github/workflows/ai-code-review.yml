@@ -95,7 +95,7 @@ jobs:
           uv run python main.py \
             --repo ${{ github.repository }} \
             --pr ${{ github.event.pull_request.number }} \
-            --config self/config.yml \
+            --config .github/ai-review-config.yml \
             --output review-results.json
 
       - name: Upload review results

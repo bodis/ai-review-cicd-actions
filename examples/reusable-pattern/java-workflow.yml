@@ -1,0 +1,46 @@
+# Reusable Pattern: Java/Spring Boot Project Review
+# Reference the centralized review system (no local copy needed)
+
+name: AI Code Review - Java
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  # Pre-build step (run Java tools before AI review)
+  java-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and analyze
+        run: |
+          mvn clean compile -DskipTests
+          mvn spotbugs:spotbugs pmd:pmd checkstyle:checkstyle
+        continue-on-error: true
+
+  # AI Review using centralized system
+  ai-review:
+    needs: java-analysis
+    uses: your-org/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
+    with:
+      enable-python-analysis: false
+      enable-js-analysis: false
+      config-file: '.github/ai-review-config.yml'
+      company-config-url: 'github://your-org/policies/main/java-standards.yml'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      COMPANY_CONFIG_TOKEN: ${{ secrets.COMPANY_CONFIG_TOKEN }}

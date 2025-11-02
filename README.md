@@ -160,32 +160,43 @@ Powered by Claude, specialized prompts for:
 
 ## Quick Start
 
-### 🎯 Recommended: Simple Self-Review Pattern
+**Two integration patterns available** - choose based on your needs:
 
-**For single projects** (like this repository reviews itself):
+### 📋 Pattern 1: Local (Copy review system to your project)
 
-See **[`self/`](self/)** directory for the **recommended simple pattern**:
-- ✅ Single workflow file to copy
-- ✅ Simple configuration
-- ✅ No reusable workflow complexity
-- ✅ Uses code from PR branch directly
+**Best for**: Single projects, full control, small teams
 
-**Copy and adapt**:
 ```bash
-cp self/workflow.yml .github/workflows/ai-review.yml
-cp self/config.yml .github/ai-review-config.yml
-# Customize config.yml for your languages
+# See examples/local-pattern/ for complete examples
+cp examples/local-pattern/python-workflow.yml .github/workflows/ai-review.yml
+cp examples/local-pattern/python-config.yml .github/ai-review-config.yml
 ```
 
-See [self/README.md](self/README.md) for complete guide.
+✅ Full control
+✅ Can customize anything
+❌ Manual updates needed
+
+### 🔗 Pattern 2: Reusable (Reference centralized system)
+
+**Best for**: Organizations with 10+ repos, consistent standards
+
+```bash
+# See examples/reusable-pattern/ for complete examples
+cp examples/reusable-pattern/python-workflow.yml .github/workflows/ai-review.yml
+# Edit to point to YOUR centralized review system repo
+```
+
+✅ Zero code duplication
+✅ Single source of truth
+❌ Less flexibility per project
+
+**📚 Complete setup guides**: See **[`examples/README.md`](examples/README.md)** for detailed instructions, language-specific examples, and pattern comparisons.
 
 ---
 
-### 🏢 For Organizations: Reusable Workflow Pattern
+### 🏢 Example: Reusable Workflow (Organizations)
 
-**For 10+ repositories** with centralized review system:
-
-This example shows the reusable workflow approach for organizations.
+For organizations managing multiple repositories:
 
 **Prerequisites**: Only one secret needed!
 - ✅ `ANTHROPIC_API_KEY` - Get from [Anthropic Console](https://console.anthropic.com/)

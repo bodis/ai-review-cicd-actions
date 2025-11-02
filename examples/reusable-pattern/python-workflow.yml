@@ -1,0 +1,28 @@
+# Reusable Pattern: Python Project Review
+# Reference the centralized review system (no local copy needed)
+
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  code-review:
+    uses: your-org/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
+    with:
+      enable-python-analysis: true
+      enable-js-analysis: false
+      python-version: '3.11'
+      config-file: '.github/ai-review-config.yml'
+      # Optional: Add company-wide policies
+      # company-config-url: 'github://your-org/policies/main/code-review.yml'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Optional: Token for accessing private company config
+      # COMPANY_CONFIG_TOKEN: ${{ secrets.COMPANY_CONFIG_TOKEN }}
