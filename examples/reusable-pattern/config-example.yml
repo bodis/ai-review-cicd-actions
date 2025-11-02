@@ -2,6 +2,10 @@
 # Place at: .github/ai-review-config.yml
 # Used by both local and reusable patterns
 
+# Anthropic API configuration (optional)
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Default: Claude Sonnet 4.5 (latest)
+
 project_context:
   name: "Your Project Name"
   architecture: "FastAPI Microservice" # or "Spring Boot", "Express.js", etc.

@@ -13,7 +13,7 @@ from .comment_generator import CommentGenerator
 class GitHubReporter:
     """Posts review results back to GitHub PR."""
 
-    def __init__(self, github_token: Optional[str] = None, anthropic_api_key: Optional[str] = None, metrics: Optional[Metrics] = None):
+    def __init__(self, github_token: Optional[str] = None, anthropic_api_key: Optional[str] = None, metrics: Optional[Metrics] = None, anthropic_model: Optional[str] = None):
         """
         Initialize GitHub reporter.
 
@@ -21,6 +21,7 @@ class GitHubReporter:
             github_token: GitHub API token. If None, uses GITHUB_TOKEN env var.
             anthropic_api_key: Anthropic API key for comment generation
             metrics: Metrics object for tracking token usage
+            anthropic_model: Claude model to use (default: claude-sonnet-4-5-20250929)
         """
         token = github_token or os.getenv('GITHUB_TOKEN')
         if not token:
@@ -32,7 +33,7 @@ class GitHubReporter:
         # Initialize comment generator with direct API (for fast, rich comments)
         api_key = anthropic_api_key or os.getenv('ANTHROPIC_API_KEY')
         try:
-            self.comment_generator = CommentGenerator(api_key, metrics=metrics) if api_key else None
+            self.comment_generator = CommentGenerator(api_key, metrics=metrics, model=anthropic_model) if api_key else None
         except Exception as e:
             print(f"⚠️ Warning: Could not initialize CommentGenerator: {e}")
             print("   Falling back to simple comment formatting")
@@ -294,11 +295,12 @@ class GitHubReporter:
                 }.get(finding.severity, '•')
 
                 lines.append(f"\n#### {severity_emoji} {finding.category.value.replace('_', ' ').title()}")
-                lines.append(f"**File:** `{finding.file_path}`", end='')
+
+                # Build file location line
+                file_location = f"**File:** `{finding.file_path}`"
                 if finding.line_number:
-                    lines.append(f" (Line {finding.line_number})")
-                else:
-                    lines.append("")
+                    file_location += f" (Line {finding.line_number})"
+                lines.append(file_location)
 
                 lines.append(f"\n{finding.message}")
 

@@ -1,6 +1,10 @@
 # Self-Review Configuration
 # This project reviews itself with Python-only analysis
 
+# Anthropic API configuration (optional)
+anthropic:
+  model: "claude-sonnet-4-5-20250929"
+
 review_aspects:
   # Static analysis tools for Python
   - name: python_static_analysis

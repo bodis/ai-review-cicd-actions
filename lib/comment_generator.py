@@ -37,20 +37,21 @@ Comment style guide:
 - Always include "why this matters" and "how to fix"
 - Use code blocks with syntax highlighting"""
 
-    def __init__(self, api_key: Optional[str] = None, metrics: Optional[Metrics] = None):
+    def __init__(self, api_key: Optional[str] = None, metrics: Optional[Metrics] = None, model: Optional[str] = None):
         """
         Initialize comment generator.
 
         Args:
             api_key: Anthropic API key (uses ANTHROPIC_API_KEY env var if not provided)
             metrics: Metrics object for tracking token usage
+            model: Claude model to use (default: claude-sonnet-4-5-20250929)
         """
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY is required")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = model or "claude-sonnet-4-5-20250929"
         self.metrics = metrics  # Optional metrics tracking
 
     def generate_inline_comment(self, finding: Finding) -> str:

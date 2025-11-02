@@ -162,10 +162,15 @@ def main():
         # Post to GitHub
         if not args.no_github_post:
             print("\nPosting results to GitHub...")
+
+            # Get model from config (optional)
+            anthropic_model = config.get('anthropic', {}).get('model')
+
             reporter = GitHubReporter(
                 github_token=github_token,
                 anthropic_api_key=anthropic_key,
-                metrics=results.metrics  # Pass metrics for comment generation tracking
+                metrics=results.metrics,
+                anthropic_model=anthropic_model
             )
             reporter.post_review_results(
                 repo_name=args.repo,

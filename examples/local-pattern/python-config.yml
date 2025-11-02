@@ -1,6 +1,10 @@
 # Python Project Configuration (Local Pattern)
 # Place at: .github/ai-review-config.yml
 
+# Anthropic API configuration (optional)
+anthropic:
+  model: "claude-sonnet-4-5-20250929"  # Claude Sonnet 4.5 (latest, recommended)
+
 review_aspects:
   # Static analysis tools for Python
   - name: python_static_analysis
