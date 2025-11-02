@@ -1,10 +1,7 @@
 """
 Injection System - Inject company and project-level rules into prompts.
 """
-import os
-import re
-from typing import Dict, Any, Optional, List
-from pathlib import Path
+from typing import Any
 
 from .models import PRContext
 
@@ -12,7 +9,7 @@ from .models import PRContext
 class InjectionSystem:
     """Manages injection of company and project policies into AI prompts."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize injection system.
 
@@ -25,7 +22,7 @@ class InjectionSystem:
         self,
         base_prompt: str,
         pr_context: PRContext,
-        shared_context: Optional[Dict[str, Any]] = None
+        shared_context: dict[str, Any] | None = None
     ) -> str:
         """
         Apply all injections to base prompt.
@@ -254,7 +251,7 @@ class InjectionSystem:
 
         return "\n".join(lines)
 
-    def _format_shared_context(self, shared_context: Dict[str, Any]) -> str:
+    def _format_shared_context(self, shared_context: dict[str, Any]) -> str:
         """
         Format shared context from previous reviews.
 
@@ -281,7 +278,7 @@ class InjectionSystem:
 
         return "\n".join(lines) + "\n"
 
-    def inject_company_policies(self, prompt: str, policies: Dict[str, Any]) -> str:
+    def inject_company_policies(self, prompt: str, policies: dict[str, Any]) -> str:
         """
         Inject company policies into prompt.
 
@@ -303,7 +300,7 @@ class InjectionSystem:
     def inject_project_constraints(
         self,
         prompt: str,
-        constraints: List[str]
+        constraints: list[str]
     ) -> str:
         """
         Inject project constraints into prompt.
@@ -323,7 +320,7 @@ class InjectionSystem:
 
         return prompt + "\n" + constraint_section
 
-    def _format_policies(self, policies: Dict[str, Any]) -> str:
+    def _format_policies(self, policies: dict[str, Any]) -> str:
         """Format policies dictionary into readable text."""
         lines = ["## Company Policies\n"]
 

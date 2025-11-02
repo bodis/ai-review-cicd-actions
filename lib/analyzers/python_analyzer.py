@@ -3,17 +3,16 @@ Python static analysis using Ruff, Pylint, Bandit, and mypy.
 """
 import json
 import re
-from typing import List, Dict, Any, Optional
-from pathlib import Path
+from typing import Any
 
+from ..models import Finding, FindingCategory, Severity
 from .base_analyzer import BaseAnalyzer
-from ..models import Finding, Severity, FindingCategory
 
 
 class PythonAnalyzer(BaseAnalyzer):
     """Analyzes Python code using multiple tools."""
 
-    def __init__(self, project_root: str = ".", tools: Optional[List[str]] = None):
+    def __init__(self, project_root: str = ".", tools: list[str] | None = None):
         """
         Initialize Python analyzer.
 
@@ -41,7 +40,7 @@ class PythonAnalyzer(BaseAnalyzer):
 
         return len(available_tools) > 0
 
-    def run_analysis(self, files: List[str]) -> List[Finding]:
+    def run_analysis(self, files: list[str]) -> list[Finding]:
         """
         Run Python analysis on specified files.
 
@@ -80,7 +79,7 @@ class PythonAnalyzer(BaseAnalyzer):
 
         return all_findings
 
-    def _run_ruff(self, files: List[str]) -> List[Finding]:
+    def _run_ruff(self, files: list[str]) -> list[Finding]:
         """Run Ruff linter."""
         try:
             result = self.run_command(
@@ -101,7 +100,7 @@ class PythonAnalyzer(BaseAnalyzer):
             print(f"Ruff analysis failed: {e}")
             return []
 
-    def _run_pylint(self, files: List[str]) -> List[Finding]:
+    def _run_pylint(self, files: list[str]) -> list[Finding]:
         """Run Pylint."""
         try:
             result = self.run_command(
@@ -119,7 +118,7 @@ class PythonAnalyzer(BaseAnalyzer):
             print(f"Pylint analysis failed: {e}")
             return []
 
-    def _run_bandit(self, files: List[str]) -> List[Finding]:
+    def _run_bandit(self, files: list[str]) -> list[Finding]:
         """Run Bandit security scanner."""
         try:
             result = self.run_command(
@@ -138,7 +137,7 @@ class PythonAnalyzer(BaseAnalyzer):
             print(f"Bandit analysis failed: {e}")
             return []
 
-    def _run_mypy(self, files: List[str]) -> List[Finding]:
+    def _run_mypy(self, files: list[str]) -> list[Finding]:
         """Run mypy type checker."""
         try:
             result = self.run_command(
@@ -158,7 +157,7 @@ class PythonAnalyzer(BaseAnalyzer):
             print(f"Mypy analysis failed: {e}")
             return []
 
-    def _parse_mypy_line(self, line: str) -> Optional[Finding]:
+    def _parse_mypy_line(self, line: str) -> Finding | None:
         """Parse a single mypy output line."""
         # Format: file.py:line:col: error: message
         pattern = r'^(.+?):(\d+):(?:\d+:)?\s*(\w+):\s*(.+)$'
@@ -189,9 +188,9 @@ class PythonAnalyzer(BaseAnalyzer):
 
     def _convert_to_finding(
         self,
-        raw_result: Dict[str, Any],
+        raw_result: dict[str, Any],
         tool_name: str
-    ) -> Optional[Finding]:
+    ) -> Finding | None:
         """
         Convert tool-specific result to Finding.
 
@@ -211,7 +210,7 @@ class PythonAnalyzer(BaseAnalyzer):
         else:
             return None
 
-    def _convert_ruff_result(self, result: Dict[str, Any]) -> Optional[Finding]:
+    def _convert_ruff_result(self, result: dict[str, Any]) -> Finding | None:
         """Convert Ruff result to Finding."""
         severity_map = {
             'E': Severity.HIGH,      # Error
@@ -236,7 +235,7 @@ class PythonAnalyzer(BaseAnalyzer):
             rule_id=code
         )
 
-    def _convert_pylint_result(self, result: Dict[str, Any]) -> Optional[Finding]:
+    def _convert_pylint_result(self, result: dict[str, Any]) -> Finding | None:
         """Convert Pylint result to Finding."""
         severity_map = {
             'fatal': Severity.CRITICAL,
@@ -264,7 +263,7 @@ class PythonAnalyzer(BaseAnalyzer):
             rule_id=result.get('symbol')
         )
 
-    def _convert_bandit_result(self, result: Dict[str, Any]) -> Optional[Finding]:
+    def _convert_bandit_result(self, result: dict[str, Any]) -> Finding | None:
         """Convert Bandit result to Finding."""
         severity_map = {
             'HIGH': Severity.CRITICAL,

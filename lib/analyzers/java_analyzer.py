@@ -3,13 +3,12 @@ Java static analysis using SpotBugs, PMD, Checkstyle, and other tools.
 Supports both free open-source tools and commercial solutions.
 """
 import json
-import re
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any
 
+from ..models import Finding, FindingCategory, Severity
 from .base_analyzer import BaseAnalyzer
-from ..models import Finding, Severity, FindingCategory
 
 
 class JavaAnalyzer(BaseAnalyzer):
@@ -40,7 +39,7 @@ class JavaAnalyzer(BaseAnalyzer):
     def __init__(
         self,
         project_root: str = ".",
-        tools: Optional[List[str]] = None,
+        tools: list[str] | None = None,
         build_tool: str = "auto"  # auto, maven, gradle
     ):
         """
@@ -83,7 +82,7 @@ class JavaAnalyzer(BaseAnalyzer):
         except RuntimeError:
             return False
 
-    def run_analysis(self, files: List[str]) -> List[Finding]:
+    def run_analysis(self, files: list[str]) -> list[Finding]:
         """
         Run Java analysis on specified files.
 
@@ -128,7 +127,7 @@ class JavaAnalyzer(BaseAnalyzer):
 
         return all_findings
 
-    def _run_spotbugs(self) -> List[Finding]:
+    def _run_spotbugs(self) -> list[Finding]:
         """
         Run SpotBugs analysis via Maven/Gradle.
 
@@ -143,13 +142,13 @@ class JavaAnalyzer(BaseAnalyzer):
 
             if self.build_tool == "maven":
                 # Run SpotBugs via Maven plugin
-                result = self.run_command([
+                _result = self.run_command([
                     'mvn', 'spotbugs:spotbugs',
                     '-Dspotbugs.xmlOutput=true',
                     f'-Dspotbugs.xmlOutputDirectory={output_file.parent}'
                 ])
             else:  # gradle
-                result = self.run_command([
+                _result = self.run_command([
                     'gradle', 'spotbugsMain',
                     '-Pspotbugs.reportDir=' + str(output_file.parent)
                 ])
@@ -164,7 +163,7 @@ class JavaAnalyzer(BaseAnalyzer):
             print(f"SpotBugs analysis failed: {e}")
             return []
 
-    def _run_pmd(self, files: List[str]) -> List[Finding]:
+    def _run_pmd(self, files: list[str]) -> list[Finding]:
         """
         Run PMD analysis.
 
@@ -178,13 +177,13 @@ class JavaAnalyzer(BaseAnalyzer):
             output_file = self.project_root / "target" / "pmd.xml"
 
             if self.build_tool == "maven":
-                result = self.run_command([
+                _result = self.run_command([
                     'mvn', 'pmd:pmd',
-                    f'-Dpmd.reportFormat=xml',
+                    '-Dpmd.reportFormat=xml',
                     f'-Dpmd.outputDirectory={output_file.parent}'
                 ])
             else:  # gradle
-                result = self.run_command([
+                _result = self.run_command([
                     'gradle', 'pmdMain',
                     f'-Ppmd.reportsDir={output_file.parent}'
                 ])
@@ -198,7 +197,7 @@ class JavaAnalyzer(BaseAnalyzer):
             print(f"PMD analysis failed: {e}")
             return []
 
-    def _run_checkstyle(self, files: List[str]) -> List[Finding]:
+    def _run_checkstyle(self, files: list[str]) -> list[Finding]:
         """
         Run Checkstyle analysis.
 
@@ -212,12 +211,12 @@ class JavaAnalyzer(BaseAnalyzer):
             output_file = self.project_root / "target" / "checkstyle-result.xml"
 
             if self.build_tool == "maven":
-                result = self.run_command([
+                _result = self.run_command([
                     'mvn', 'checkstyle:checkstyle',
                     f'-Dcheckstyle.output.file={output_file}'
                 ])
             else:  # gradle
-                result = self.run_command([
+                _result = self.run_command([
                     'gradle', 'checkstyleMain',
                     f'-Pcheckstyle.reportsDir={output_file.parent}'
                 ])
@@ -231,7 +230,7 @@ class JavaAnalyzer(BaseAnalyzer):
             print(f"Checkstyle analysis failed: {e}")
             return []
 
-    def _run_jacoco(self) -> List[Finding]:
+    def _run_jacoco(self) -> list[Finding]:
         """
         Run JaCoCo coverage analysis.
 
@@ -239,11 +238,11 @@ class JavaAnalyzer(BaseAnalyzer):
         """
         try:
             if self.build_tool == "maven":
-                result = self.run_command([
+                _result = self.run_command([
                     'mvn', 'jacoco:report'
                 ])
             else:  # gradle
-                result = self.run_command([
+                _result = self.run_command([
                     'gradle', 'jacocoTestReport'
                 ])
 
@@ -258,7 +257,7 @@ class JavaAnalyzer(BaseAnalyzer):
             print(f"JaCoCo analysis failed: {e}")
             return []
 
-    def _run_owasp_dependency_check(self) -> List[Finding]:
+    def _run_owasp_dependency_check(self) -> list[Finding]:
         """
         Run OWASP Dependency-Check.
 
@@ -269,13 +268,13 @@ class JavaAnalyzer(BaseAnalyzer):
             output_file = self.project_root / "target" / "dependency-check-report.json"
 
             if self.build_tool == "maven":
-                result = self.run_command([
+                _result = self.run_command([
                     'mvn', 'dependency-check:check',
                     f'-DoutputDirectory={output_file.parent}',
                     '-Dformat=JSON'
                 ])
             else:  # gradle
-                result = self.run_command([
+                _result = self.run_command([
                     'gradle', 'dependencyCheckAnalyze',
                     f'-Pdependency-check.outputDirectory={output_file.parent}'
                 ])
@@ -289,7 +288,7 @@ class JavaAnalyzer(BaseAnalyzer):
             print(f"OWASP Dependency-Check failed: {e}")
             return []
 
-    def _run_archunit(self) -> List[Finding]:
+    def _run_archunit(self) -> list[Finding]:
         """
         Run ArchUnit tests.
 
@@ -298,12 +297,12 @@ class JavaAnalyzer(BaseAnalyzer):
         """
         try:
             if self.build_tool == "maven":
-                result = self.run_command([
+                _result = self.run_command([
                     'mvn', 'test',
                     '-Dtest=*ArchTest'
                 ])
             else:  # gradle
-                result = self.run_command([
+                _result = self.run_command([
                     'gradle', 'test',
                     '--tests', '*ArchTest'
                 ])
@@ -316,7 +315,7 @@ class JavaAnalyzer(BaseAnalyzer):
             print(f"ArchUnit tests failed: {e}")
             return []
 
-    def _run_paid_tool(self, tool: str) -> List[Finding]:
+    def _run_paid_tool(self, tool: str) -> list[Finding]:
         """
         Placeholder for paid tool integration.
 
@@ -330,7 +329,7 @@ class JavaAnalyzer(BaseAnalyzer):
         print(f"     See documentation for {tool} configuration")
         return []
 
-    def _parse_spotbugs_xml(self, xml_file: Path) -> List[Finding]:
+    def _parse_spotbugs_xml(self, xml_file: Path) -> list[Finding]:
         """Parse SpotBugs XML report."""
         findings = []
         try:
@@ -364,7 +363,7 @@ class JavaAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _parse_pmd_xml(self, xml_file: Path) -> List[Finding]:
+    def _parse_pmd_xml(self, xml_file: Path) -> list[Finding]:
         """Parse PMD XML report."""
         findings = []
         try:
@@ -396,7 +395,7 @@ class JavaAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _parse_checkstyle_xml(self, xml_file: Path) -> List[Finding]:
+    def _parse_checkstyle_xml(self, xml_file: Path) -> list[Finding]:
         """Parse Checkstyle XML report."""
         findings = []
         try:
@@ -425,7 +424,7 @@ class JavaAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _parse_jacoco_xml(self, xml_file: Path) -> List[Finding]:
+    def _parse_jacoco_xml(self, xml_file: Path) -> list[Finding]:
         """Parse JaCoCo coverage XML report."""
         findings = []
         try:
@@ -437,7 +436,7 @@ class JavaAnalyzer(BaseAnalyzer):
                 package_name = package.get('name', '')
 
                 for class_elem in package.findall('.//class'):
-                    class_name = class_elem.get('name', '')
+                    _class_name = class_elem.get('name', '')  # Not used but kept for debugging
                     source_file = class_elem.get('sourcefilename', '')
 
                     # Calculate coverage percentages
@@ -460,7 +459,7 @@ class JavaAnalyzer(BaseAnalyzer):
                                     severity=severity,
                                     category=FindingCategory.TESTING,
                                     message=f"Low test coverage: {coverage:.1f}% ({covered}/{total} lines covered)",
-                                    suggestion=f"Add tests to increase coverage above 80%",
+                                    suggestion="Add tests to increase coverage above 80%",
                                     tool='jacoco'
                                 ))
 
@@ -469,11 +468,11 @@ class JavaAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _parse_dependency_check_json(self, json_file: Path) -> List[Finding]:
+    def _parse_dependency_check_json(self, json_file: Path) -> list[Finding]:
         """Parse OWASP Dependency-Check JSON report."""
         findings = []
         try:
-            with open(json_file, 'r') as f:
+            with open(json_file) as f:
                 data = json.load(f)
 
             for dependency in data.get('dependencies', []):
@@ -554,9 +553,9 @@ class JavaAnalyzer(BaseAnalyzer):
 
     def _convert_to_finding(
         self,
-        raw_result: Dict[str, Any],
+        raw_result: dict[str, Any],
         tool_name: str
-    ) -> Optional[Finding]:
+    ) -> Finding | None:
         """Convert tool-specific result to Finding."""
         # This is handled by specific parsers above
         return None

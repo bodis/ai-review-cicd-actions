@@ -2,8 +2,8 @@
 Data models for the code review system.
 """
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
 from enum import Enum
+from typing import Any, Optional
 
 
 class Severity(str, Enum):
@@ -45,16 +45,16 @@ class ChangeType(str, Enum):
 class Finding:
     """Represents a single code review finding."""
     file_path: str
-    line_number: Optional[int]
+    line_number: int | None
     severity: Severity
     category: FindingCategory
     message: str
-    suggestion: Optional[str] = None
-    tool: Optional[str] = None
-    rule_id: Optional[str] = None
-    code_snippet: Optional[str] = None
+    suggestion: str | None = None
+    tool: str | None = None
+    rule_id: str | None = None
+    code_snippet: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert finding to dictionary."""
         return {
             "file_path": self.file_path,
@@ -77,8 +77,8 @@ class FileChange:
     additions: int
     deletions: int
     changes: int
-    patch: Optional[str] = None
-    old_path: Optional[str] = None  # For renamed files
+    patch: str | None = None
+    old_path: str | None = None  # For renamed files
 
 
 @dataclass
@@ -90,29 +90,29 @@ class PRContext:
     author: str
     base_branch: str
     head_branch: str
-    labels: List[str]
-    changed_files: List[FileChange]
+    labels: list[str]
+    changed_files: list[FileChange]
     diff: str
-    detected_languages: List[str] = field(default_factory=list)
-    change_types: List[ChangeType] = field(default_factory=list)
+    detected_languages: list[str] = field(default_factory=list)
+    change_types: list[ChangeType] = field(default_factory=list)
 
 
 @dataclass
 class ReviewResult:
     """Result from a single review aspect."""
     aspect_name: str
-    findings: List[Finding]
+    findings: list[Finding]
     execution_time: float
     success: bool
-    error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error_message: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class Metrics:
     """Performance and cost metrics for review pipeline."""
     total_duration: float = 0.0
-    aspect_durations: Dict[str, float] = field(default_factory=dict)
+    aspect_durations: dict[str, float] = field(default_factory=dict)
     api_calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -133,7 +133,7 @@ class Metrics:
 
         self.estimated_cost_usd += input_cost + output_cost + cache_cost
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary."""
         return {
             'performance': {
@@ -154,17 +154,17 @@ class Metrics:
 class AggregatedResults:
     """Aggregated results from all review aspects."""
     pr_context: PRContext
-    review_results: List[ReviewResult]
-    all_findings: List[Finding]
-    statistics: Dict[str, int]
+    review_results: list[ReviewResult]
+    all_findings: list[Finding]
+    statistics: dict[str, int]
     should_block: bool
-    blocking_reason: Optional[str] = None
+    blocking_reason: str | None = None
     total_execution_time: float = 0.0
     metrics: Optional['Metrics'] = None
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert aggregated results to dictionary."""
         result = {
             "pr_number": self.pr_context.pr_number,
@@ -202,9 +202,9 @@ class DependencyChange:
     """Represents a dependency change."""
     file: str
     package_name: str
-    old_version: Optional[str]
-    new_version: Optional[str]
+    old_version: str | None
+    new_version: str | None
     change_type: str  # added, removed, updated
     is_major_update: bool = False
     has_vulnerabilities: bool = False
-    vulnerability_details: List[Dict[str, Any]] = field(default_factory=list)
+    vulnerability_details: list[dict[str, Any]] = field(default_factory=list)

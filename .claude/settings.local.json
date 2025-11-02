@@ -9,7 +9,10 @@
       "Bash(python:*)",
       "Bash(uv run pytest:*)",
       "WebSearch",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(cat:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

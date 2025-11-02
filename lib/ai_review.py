@@ -1,21 +1,21 @@
 """
 AI Review Engine - Execute AI-driven code reviews using Claude Code CLI.
 """
-import os
 import json
+import os
 import subprocess
 import time
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any
 
-from .models import Finding, Severity, FindingCategory, PRContext, Metrics
 from .injection import InjectionSystem
+from .models import Finding, FindingCategory, Metrics, PRContext, Severity
 
 
 class AIReviewEngine:
     """Executes AI-driven code reviews using Claude Code CLI."""
 
-    def __init__(self, project_root: str = ".", config: Optional[Dict[str, Any]] = None, metrics: Optional[Metrics] = None):
+    def __init__(self, project_root: str = ".", config: dict[str, Any] | None = None, metrics: Metrics | None = None):
         """
         Initialize AI review engine.
 
@@ -33,7 +33,7 @@ class AIReviewEngine:
         self,
         prompt: str,
         max_retries: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Execute Claude Code with validation and retry logic.
 
@@ -65,7 +65,7 @@ class AIReviewEngine:
                     prompt = self._build_correction_prompt(prompt, result, str(e))
                     time.sleep(1)  # Brief delay before retry
                 else:
-                    raise RuntimeError(f"Failed to get valid JSON after {max_retries} attempts")
+                    raise RuntimeError(f"Failed to get valid JSON after {max_retries} attempts") from e
 
             except Exception as e:
                 if attempt < max_retries - 1:
@@ -115,7 +115,7 @@ class AIReviewEngine:
             # Add verbose flag for debugging
             if os.getenv('DEBUG_AI_PROMPTS'):
                 claude_cmd.append('--verbose')
-                print(f"   🐛 Debug mode enabled, using --verbose flag")
+                print("   🐛 Debug mode enabled, using --verbose flag")
 
             claude_cmd.append(str(prompt_file))  # Input prompt file
 
@@ -164,22 +164,22 @@ class AIReviewEngine:
 
             return result.stdout
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             raise RuntimeError(
-                f"Claude Code CLI timed out after 300s. "
-                f"Consider reducing prompt size or increasing timeout."
-            )
-        except FileNotFoundError:
+                "Claude Code CLI timed out after 300s. "
+                "Consider reducing prompt size or increasing timeout."
+            ) from e
+        except FileNotFoundError as e:
             raise RuntimeError(
                 "Claude Code CLI not found in PATH. "
                 "Install: curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash"
-            )
+            ) from e
         finally:
             # Clean up temporary file
             if prompt_file.exists():
                 prompt_file.unlink()
 
-    def _validate_json_output(self, output: str) -> Dict[str, Any]:
+    def _validate_json_output(self, output: str) -> dict[str, Any]:
         """
         Validate and parse JSON output from AI.
 
@@ -205,7 +205,7 @@ class AIReviewEngine:
 
         # If output is empty, return empty findings
         if not json_str or json_str in ['OK', 'ok', 'Ok']:
-            print(f"   ⚠️ No output received, returning empty findings")
+            print("   ⚠️ No output received, returning empty findings")
             return {'findings': []}
 
         # Try to parse as JSON first (might be CLI wrapper)
@@ -216,7 +216,7 @@ class AIReviewEngine:
             if isinstance(parsed, dict):
                 # Format 1: CLI wrapper with content array
                 if 'content' in parsed and isinstance(parsed['content'], list):
-                    print(f"   🔍 Detected CLI JSON wrapper, extracting content...")
+                    print("   🔍 Detected CLI JSON wrapper, extracting content...")
                     # Extract text from first content block
                     if len(parsed['content']) > 0 and 'text' in parsed['content'][0]:
                         claude_text = parsed['content'][0]['text']
@@ -236,13 +236,13 @@ class AIReviewEngine:
 
         except json.JSONDecodeError:
             # Not valid JSON, might be text with JSON inside
-            print(f"   ⚠️ Not valid JSON, attempting to extract JSON from text...")
+            print("   ⚠️ Not valid JSON, attempting to extract JSON from text...")
             pass
 
         # Try to extract JSON from text (markdown code blocks, etc.)
         return self._parse_claude_response(json_str)
 
-    def _parse_claude_response(self, text: str) -> Dict[str, Any]:
+    def _parse_claude_response(self, text: str) -> dict[str, Any]:
         """
         Parse Claude's text response, extracting JSON from markdown code blocks if needed.
 
@@ -289,7 +289,7 @@ class AIReviewEngine:
             print(f"   ✅ Findings object with {len(parsed['findings'])} findings")
             return parsed
 
-        raise ValueError(f"Missing required field 'findings' in response")
+        raise ValueError("Missing required field 'findings' in response")
 
     def _build_correction_prompt(
         self,
@@ -334,9 +334,9 @@ Please provide a corrected response with valid JSON in this exact format:
 
     def build_review_prompt(
         self,
-        aspect: Dict[str, Any],
+        aspect: dict[str, Any],
         pr_context: PRContext,
-        shared_context: Optional[Dict[str, Any]] = None
+        shared_context: dict[str, Any] | None = None
     ) -> str:
         """
         Build AI prompt with all injections.
@@ -358,7 +358,7 @@ Please provide a corrected response with valid JSON in this exact format:
         if not prompt_path.exists():
             raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
 
-        with open(prompt_path, 'r') as f:
+        with open(prompt_path) as f:
             base_prompt = f.read()
 
         # Apply injections
@@ -370,7 +370,7 @@ Please provide a corrected response with valid JSON in this exact format:
 
         return prompt
 
-    def parse_ai_findings(self, ai_response: Dict[str, Any]) -> List[Finding]:
+    def parse_ai_findings(self, ai_response: dict[str, Any]) -> list[Finding]:
         """
         Parse AI response into Finding objects.
 
@@ -401,7 +401,7 @@ Please provide a corrected response with valid JSON in this exact format:
 
         return findings
 
-    def _extract_token_usage(self, stderr: str) -> Optional[Dict[str, Any]]:
+    def _extract_token_usage(self, stderr: str) -> dict[str, Any] | None:
         """
         Extract token usage from Claude Code stderr output.
 
@@ -443,10 +443,10 @@ Please provide a corrected response with valid JSON in this exact format:
 
     def run_review(
         self,
-        aspect: Dict[str, Any],
+        aspect: dict[str, Any],
         pr_context: PRContext,
-        shared_context: Optional[Dict[str, Any]] = None
-    ) -> List[Finding]:
+        shared_context: dict[str, Any] | None = None
+    ) -> list[Finding]:
         """
         Run a complete AI review for an aspect.
 

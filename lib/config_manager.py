@@ -1,13 +1,14 @@
 """
 Configuration manager for multi-level configuration loading and merging.
 """
-import os
-import yaml
 import json
-import requests
-from typing import Dict, Any, Optional
+import os
 from pathlib import Path
-from jsonschema import validate, ValidationError
+from typing import Any
+
+import requests
+import yaml
+from jsonschema import ValidationError, validate
 
 
 class ConfigurationError(Exception):
@@ -133,13 +134,13 @@ class ConfigManager:
     def __init__(self, project_root: str = "."):
         """Initialize configuration manager."""
         self.project_root = Path(project_root)
-        self.config: Dict[str, Any] = {}
+        self.config: dict[str, Any] = {}
 
-    def load_default_config(self) -> Dict[str, Any]:
+    def load_default_config(self) -> dict[str, Any]:
         """Load built-in default configuration."""
         return self.DEFAULT_CONFIG.copy()
 
-    def load_project_config(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def load_project_config(self, path: str | None = None) -> dict[str, Any]:
         """
         Load project-level configuration from repository.
 
@@ -166,15 +167,15 @@ class ConfigManager:
             return {}
 
         try:
-            with open(path, 'r') as f:
+            with open(path) as f:
                 if path.endswith('.json'):
                     return json.load(f)
                 else:
                     return yaml.safe_load(f) or {}
         except Exception as e:
-            raise ConfigurationError(f"Failed to load project config from {path}: {e}")
+            raise ConfigurationError(f"Failed to load project config from {path}: {e}") from e
 
-    def load_company_config(self, source: Optional[str] = None) -> Dict[str, Any]:
+    def load_company_config(self, source: str | None = None) -> dict[str, Any]:
         """
         Load company-level configuration from external source.
 
@@ -195,17 +196,17 @@ class ConfigManager:
                 return self._fetch_from_url(source)
             elif source.startswith('file://'):
                 file_path = source.replace('file://', '')
-                with open(file_path, 'r') as f:
+                with open(file_path) as f:
                     return yaml.safe_load(f) or {}
             else:
                 # Assume it's a file path
-                with open(source, 'r') as f:
+                with open(source) as f:
                     return yaml.safe_load(f) or {}
         except Exception as e:
             print(f"Warning: Failed to load company config from {source}: {e}")
             return {}
 
-    def _fetch_from_github(self, source: str) -> Dict[str, Any]:
+    def _fetch_from_github(self, source: str) -> dict[str, Any]:
         """
         Fetch configuration from GitHub.
 
@@ -229,7 +230,7 @@ class ConfigManager:
         url = f"https://raw.githubusercontent.com/{org}/{repo}/{branch}/{file_path}"
         return self._fetch_from_url(url)
 
-    def _fetch_from_url(self, url: str) -> Dict[str, Any]:
+    def _fetch_from_url(self, url: str) -> dict[str, Any]:
         """Fetch configuration from HTTP(S) URL."""
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -240,7 +241,7 @@ class ConfigManager:
         else:
             return yaml.safe_load(content) or {}
 
-    def merge_configs(self, *configs: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_configs(self, *configs: dict[str, Any]) -> dict[str, Any]:
         """
         Merge multiple configuration dictionaries with proper precedence.
         Later configs override earlier ones.
@@ -258,7 +259,7 @@ class ConfigManager:
 
         return merged
 
-    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Deep merge two dictionaries."""
         result = base.copy()
 
@@ -270,7 +271,7 @@ class ConfigManager:
 
         return result
 
-    def validate_config(self, config: Dict[str, Any]) -> None:
+    def validate_config(self, config: dict[str, Any]) -> None:
         """
         Validate configuration against schema.
 
@@ -283,13 +284,13 @@ class ConfigManager:
         try:
             validate(instance=config, schema=self.CONFIG_SCHEMA)
         except ValidationError as e:
-            raise ConfigurationError(f"Configuration validation failed: {e.message}")
+            raise ConfigurationError(f"Configuration validation failed: {e.message}") from e
 
     def load_all_configs(
         self,
-        project_config_path: Optional[str] = None,
-        company_config_source: Optional[str] = None
-    ) -> Dict[str, Any]:
+        project_config_path: str | None = None,
+        company_config_source: str | None = None
+    ) -> dict[str, Any]:
         """
         Load and merge all configuration levels.
 
@@ -333,7 +334,7 @@ class ConfigManager:
 
         return value if value is not None else default
 
-    def resolve_config_references(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def resolve_config_references(self, config: dict[str, Any]) -> dict[str, Any]:
         """
         Resolve variable references in configuration.
         Supports ${VAR_NAME} syntax for environment variables.

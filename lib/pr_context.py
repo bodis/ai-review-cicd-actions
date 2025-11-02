@@ -3,12 +3,11 @@ PR Context Builder - Extract and prepare PR information for review.
 """
 import os
 import re
-from typing import List, Optional, Dict, Set
+
 from github import Github
 from github.PullRequest import PullRequest
-from github.Repository import Repository
 
-from .models import PRContext, FileChange, ChangeType
+from .models import ChangeType, FileChange, PRContext
 
 
 class PRContextBuilder:
@@ -76,7 +75,7 @@ class PRContextBuilder:
         'composer.lock': 'php'
     }
 
-    def __init__(self, github_token: Optional[str] = None):
+    def __init__(self, github_token: str | None = None):
         """
         Initialize PR context builder.
 
@@ -136,7 +135,7 @@ class PRContextBuilder:
             change_types=change_types
         )
 
-    def _get_pr_metadata(self, pr: PullRequest) -> Dict[str, any]:
+    def _get_pr_metadata(self, pr: PullRequest) -> dict[str, any]:
         """Extract PR metadata."""
         return {
             'title': pr.title,
@@ -147,7 +146,7 @@ class PRContextBuilder:
             'labels': [label.name for label in pr.labels]
         }
 
-    def _get_changed_files(self, pr: PullRequest) -> List[FileChange]:
+    def _get_changed_files(self, pr: PullRequest) -> list[FileChange]:
         """Get list of changed files with statistics."""
         changed_files = []
 
@@ -165,7 +164,7 @@ class PRContextBuilder:
 
         return changed_files
 
-    def _get_pr_diff(self, pr: PullRequest, changed_files: List[FileChange]) -> str:
+    def _get_pr_diff(self, pr: PullRequest, changed_files: list[FileChange]) -> str:
         """
         Get complete diff for PR.
 
@@ -186,7 +185,7 @@ class PRContextBuilder:
 
         return "\n".join(diff_parts)
 
-    def _detect_languages(self, changed_files: List[FileChange]) -> List[str]:
+    def _detect_languages(self, changed_files: list[FileChange]) -> list[str]:
         """
         Detect programming languages from changed files.
 
@@ -196,7 +195,7 @@ class PRContextBuilder:
         Returns:
             List of detected language names
         """
-        languages: Set[str] = set()
+        languages: set[str] = set()
 
         for file_change in changed_files:
             # Get file extension
@@ -206,13 +205,13 @@ class PRContextBuilder:
                     languages.add(lang)
                     break
 
-        return sorted(list(languages))
+        return sorted(languages)
 
     def _detect_change_types(
         self,
-        changed_files: List[FileChange],
+        changed_files: list[FileChange],
         diff: str
-    ) -> List[ChangeType]:
+    ) -> list[ChangeType]:
         """
         Detect types of changes in the PR.
 
@@ -223,7 +222,7 @@ class PRContextBuilder:
         Returns:
             List of detected change types
         """
-        change_types: Set[ChangeType] = set()
+        change_types: set[ChangeType] = set()
 
         # Check for dependency changes
         if self._has_dependency_changes(changed_files):
@@ -248,9 +247,9 @@ class PRContextBuilder:
         if not change_types:
             change_types.add(ChangeType.FEATURE)
 
-        return sorted(list(change_types), key=lambda x: x.value)
+        return sorted(change_types, key=lambda x: x.value)
 
-    def _has_dependency_changes(self, changed_files: List[FileChange]) -> bool:
+    def _has_dependency_changes(self, changed_files: list[FileChange]) -> bool:
         """Check if PR includes dependency changes."""
         for file_change in changed_files:
             filename = os.path.basename(file_change.path)
@@ -258,7 +257,7 @@ class PRContextBuilder:
                 return True
         return False
 
-    def _has_test_changes(self, changed_files: List[FileChange]) -> bool:
+    def _has_test_changes(self, changed_files: list[FileChange]) -> bool:
         """Check if PR includes test file changes."""
         test_patterns = [
             r'test_.*\.py$',
@@ -276,7 +275,7 @@ class PRContextBuilder:
                     return True
         return False
 
-    def _has_documentation_changes(self, changed_files: List[FileChange]) -> bool:
+    def _has_documentation_changes(self, changed_files: list[FileChange]) -> bool:
         """Check if PR includes documentation changes."""
         doc_patterns = [
             r'\.md$',
@@ -323,7 +322,7 @@ class PRContextBuilder:
                 return True
         return False
 
-    def calculate_change_impact(self, pr_context: PRContext) -> Dict[str, any]:
+    def calculate_change_impact(self, pr_context: PRContext) -> dict[str, any]:
         """
         Calculate impact score for PR changes.
 

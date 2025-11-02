@@ -3,23 +3,26 @@ Orchestrator - Coordinates execution of all review aspects.
 """
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from .models import (
-    PRContext, ReviewResult, AggregatedResults,
-    Finding, Severity, ChangeType, Metrics
-)
-from .config_manager import ConfigManager
-from .pr_context import PRContextBuilder
-from .analyzers.python_analyzer import PythonAnalyzer
-from .analyzers.javascript_analyzer import JavaScriptAnalyzer
 from .analyzers.java_analyzer import JavaAnalyzer
+from .analyzers.javascript_analyzer import JavaScriptAnalyzer
+from .analyzers.python_analyzer import PythonAnalyzer
+from .models import (
+    AggregatedResults,
+    Finding,
+    Metrics,
+    PRContext,
+    ReviewResult,
+    Severity,
+)
+from .pr_context import PRContextBuilder
 
 
 class ReviewOrchestrator:
     """Orchestrates the entire code review pipeline."""
 
-    def __init__(self, config: Dict[str, Any], project_root: str = "."):
+    def __init__(self, config: dict[str, Any], project_root: str = "."):
         """
         Initialize orchestrator.
 
@@ -29,14 +32,14 @@ class ReviewOrchestrator:
         """
         self.config = config
         self.project_root = project_root
-        self.review_results: List[ReviewResult] = []
+        self.review_results: list[ReviewResult] = []
         self.metrics = Metrics()  # Initialize metrics tracking
 
     def run_review_pipeline(
         self,
         repo_name: str,
         pr_number: int,
-        github_token: Optional[str] = None
+        github_token: str | None = None
     ) -> AggregatedResults:
         """
         Main entry point for running the complete review pipeline with error recovery.
@@ -143,7 +146,7 @@ class ReviewOrchestrator:
 
         # Print metrics if available
         if self.metrics.api_calls > 0:
-            print(f"\n📊 API Usage:")
+            print("\n📊 API Usage:")
             print(f"  Calls: {self.metrics.api_calls}")
             print(f"  Tokens: {self.metrics.input_tokens} in, {self.metrics.output_tokens} out")
             if self.metrics.cache_read_tokens > 0:
@@ -156,9 +159,9 @@ class ReviewOrchestrator:
 
     def execute_review_aspects_with_recovery(
         self,
-        aspects: List[Dict[str, Any]],
+        aspects: list[dict[str, Any]],
         pr_context: PRContext
-    ) -> tuple[List[ReviewResult], List[str]]:
+    ) -> tuple[list[ReviewResult], list[str]]:
         """
         Execute all review aspects with error recovery and timeout handling.
 
@@ -198,9 +201,9 @@ class ReviewOrchestrator:
 
     def execute_review_aspects(
         self,
-        aspects: List[Dict[str, Any]],
+        aspects: list[dict[str, Any]],
         pr_context: PRContext
-    ) -> List[ReviewResult]:
+    ) -> list[ReviewResult]:
         """
         Execute all review aspects in parallel or sequential based on config.
 
@@ -218,9 +221,9 @@ class ReviewOrchestrator:
 
     def _execute_parallel_with_recovery(
         self,
-        aspects: List[Dict[str, Any]],
+        aspects: list[dict[str, Any]],
         pr_context: PRContext
-    ) -> tuple[List[ReviewResult], List[str]]:
+    ) -> tuple[list[ReviewResult], list[str]]:
         """Execute review aspects in parallel with timeout and error recovery."""
         results = []
         errors = []
@@ -266,18 +269,18 @@ class ReviewOrchestrator:
 
     def _execute_parallel(
         self,
-        aspects: List[Dict[str, Any]],
+        aspects: list[dict[str, Any]],
         pr_context: PRContext
-    ) -> List[ReviewResult]:
+    ) -> list[ReviewResult]:
         """Execute review aspects in parallel (deprecated)."""
         results, _ = self._execute_parallel_with_recovery(aspects, pr_context)
         return results
 
     def _execute_sequential_with_recovery(
         self,
-        aspects: List[Dict[str, Any]],
+        aspects: list[dict[str, Any]],
         pr_context: PRContext
-    ) -> tuple[List[ReviewResult], List[str]]:
+    ) -> tuple[list[ReviewResult], list[str]]:
         """Execute review aspects sequentially with timeout and error recovery."""
         results = []
         errors = []
@@ -329,19 +332,19 @@ class ReviewOrchestrator:
 
     def _execute_sequential(
         self,
-        aspects: List[Dict[str, Any]],
+        aspects: list[dict[str, Any]],
         pr_context: PRContext
-    ) -> List[ReviewResult]:
+    ) -> list[ReviewResult]:
         """Execute review aspects sequentially (deprecated)."""
         results, _ = self._execute_sequential_with_recovery(aspects, pr_context)
         return results
 
     def _execute_single_aspect_with_timeout(
         self,
-        aspect: Dict[str, Any],
+        aspect: dict[str, Any],
         pr_context: PRContext,
         timeout: int,
-        shared_context: Optional[Dict[str, Any]] = None
+        shared_context: dict[str, Any] | None = None
     ) -> ReviewResult:
         """
         Execute a single review aspect with timeout.
@@ -403,9 +406,9 @@ class ReviewOrchestrator:
 
     def _execute_single_aspect(
         self,
-        aspect: Dict[str, Any],
+        aspect: dict[str, Any],
         pr_context: PRContext,
-        shared_context: Optional[Dict[str, Any]] = None
+        shared_context: dict[str, Any] | None = None
     ) -> ReviewResult:
         """
         Execute a single review aspect.
@@ -441,9 +444,9 @@ class ReviewOrchestrator:
 
     def _run_classical_analysis(
         self,
-        aspect: Dict[str, Any],
+        aspect: dict[str, Any],
         pr_context: PRContext
-    ) -> List[Finding]:
+    ) -> list[Finding]:
         """Run classical static analysis tools."""
         findings = []
         changed_file_paths = [f.path for f in pr_context.changed_files]
@@ -477,10 +480,10 @@ class ReviewOrchestrator:
 
     def _run_ai_review(
         self,
-        aspect: Dict[str, Any],
+        aspect: dict[str, Any],
         pr_context: PRContext,
-        shared_context: Optional[Dict[str, Any]] = None
-    ) -> List[Finding]:
+        shared_context: dict[str, Any] | None = None
+    ) -> list[Finding]:
         """
         Run AI-driven review using Claude Code CLI.
 
@@ -514,7 +517,7 @@ class ReviewOrchestrator:
     def aggregate_results(
         self,
         pr_context: PRContext,
-        review_results: List[ReviewResult]
+        review_results: list[ReviewResult]
     ) -> AggregatedResults:
         """
         Aggregate results from all review aspects.
@@ -546,7 +549,7 @@ class ReviewOrchestrator:
             blocking_reason=None
         )
 
-    def _deduplicate_findings(self, findings: List[Finding]) -> List[Finding]:
+    def _deduplicate_findings(self, findings: list[Finding]) -> list[Finding]:
         """
         Deduplicate findings based on file, line, and message.
 
@@ -574,7 +577,7 @@ class ReviewOrchestrator:
 
         return deduplicated
 
-    def _calculate_statistics(self, findings: List[Finding]) -> Dict[str, int]:
+    def _calculate_statistics(self, findings: list[Finding]) -> dict[str, int]:
         """Calculate statistics from findings."""
         stats = {
             'total': len(findings),
@@ -597,9 +600,9 @@ class ReviewOrchestrator:
 
     def apply_blocking_rules(
         self,
-        findings: List[Finding],
-        blocking_rules: Dict[str, Any]
-    ) -> tuple[bool, Optional[str]]:
+        findings: list[Finding],
+        blocking_rules: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """
         Determine if PR should be blocked based on findings.
 

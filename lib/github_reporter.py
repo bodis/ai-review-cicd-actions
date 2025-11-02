@@ -2,18 +2,19 @@
 GitHub Reporter - Post results back to GitHub PR.
 """
 import os
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from github import Github
 from github.PullRequest import PullRequest
 
-from .models import AggregatedResults, Finding, Severity, Metrics
 from .comment_generator import CommentGenerator
+from .models import AggregatedResults, Finding, Metrics, Severity
 
 
 class GitHubReporter:
     """Posts review results back to GitHub PR."""
 
-    def __init__(self, github_token: Optional[str] = None, anthropic_api_key: Optional[str] = None, metrics: Optional[Metrics] = None, anthropic_model: Optional[str] = None):
+    def __init__(self, github_token: str | None = None, anthropic_api_key: str | None = None, metrics: Metrics | None = None, anthropic_model: str | None = None):
         """
         Initialize GitHub reporter.
 
@@ -44,7 +45,7 @@ class GitHubReporter:
         repo_name: str,
         pr_number: int,
         results: AggregatedResults,
-        config: Dict[str, Any]
+        config: dict[str, Any]
     ) -> None:
         """
         Post complete review results to GitHub PR.
@@ -164,7 +165,7 @@ class GitHubReporter:
         latest_commit = commits[-1]
 
         # Post review comments
-        for finding, comment_body in zip(inline_findings, comments):
+        for finding, comment_body in zip(inline_findings, comments, strict=True):
             try:
                 # Normalize file path to relative path
                 # GitHub API expects paths relative to repo root
@@ -208,12 +209,10 @@ class GitHubReporter:
         Update PR status check.
 
         Args:
-            repo_name: Repository name
+            repo_name: Repository name (unused, kept for API compatibility)
             pr: Pull request object
             results: Aggregated results
         """
-        repo = self.github.get_repo(repo_name)
-
         # Get the latest commit
         commits = list(pr.get_commits())
         if not commits:

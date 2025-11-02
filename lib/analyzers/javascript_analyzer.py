@@ -3,17 +3,16 @@ JavaScript/TypeScript static analysis using ESLint, Prettier, and TSC.
 """
 import json
 import re
-from typing import List, Dict, Any, Optional
-from pathlib import Path
+from typing import Any
 
+from ..models import Finding, FindingCategory, Severity
 from .base_analyzer import BaseAnalyzer
-from ..models import Finding, Severity, FindingCategory
 
 
 class JavaScriptAnalyzer(BaseAnalyzer):
     """Analyzes JavaScript/TypeScript code."""
 
-    def __init__(self, project_root: str = ".", tools: Optional[List[str]] = None):
+    def __init__(self, project_root: str = ".", tools: list[str] | None = None):
         """
         Initialize JavaScript analyzer.
 
@@ -45,7 +44,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
 
         return False
 
-    def run_analysis(self, files: List[str]) -> List[Finding]:
+    def run_analysis(self, files: list[str]) -> list[Finding]:
         """
         Run JavaScript/TypeScript analysis on specified files.
 
@@ -85,7 +84,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
 
         return all_findings
 
-    def _run_eslint(self, files: List[str]) -> List[Finding]:
+    def _run_eslint(self, files: list[str]) -> list[Finding]:
         """Run ESLint."""
         try:
             result = self.run_command(
@@ -113,7 +112,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
             print(f"ESLint analysis failed: {e}")
             return []
 
-    def _run_prettier(self, files: List[str]) -> List[Finding]:
+    def _run_prettier(self, files: list[str]) -> list[Finding]:
         """Run Prettier format checker."""
         try:
             result = self.run_command(
@@ -145,7 +144,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
             print(f"Prettier check failed: {e}")
             return []
 
-    def _run_tsc(self) -> List[Finding]:
+    def _run_tsc(self) -> list[Finding]:
         """Run TypeScript compiler for type checking."""
         try:
             # Check if tsconfig.json exists
@@ -170,7 +169,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
             print(f"TypeScript compilation check failed: {e}")
             return []
 
-    def _parse_tsc_line(self, line: str) -> Optional[Finding]:
+    def _parse_tsc_line(self, line: str) -> Finding | None:
         """Parse a single TypeScript compiler output line."""
         # Format: file.ts(line,col): error TSxxxx: message
         pattern = r'^(.+?)\((\d+),\d+\):\s*(\w+)\s+(TS\d+):\s*(.+)$'
@@ -201,9 +200,9 @@ class JavaScriptAnalyzer(BaseAnalyzer):
 
     def _convert_to_finding(
         self,
-        raw_result: Dict[str, Any],
+        raw_result: dict[str, Any],
         tool_name: str
-    ) -> Optional[Finding]:
+    ) -> Finding | None:
         """
         Convert tool-specific result to Finding.
 
@@ -219,7 +218,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
         else:
             return None
 
-    def _convert_eslint_result(self, result: Dict[str, Any]) -> Optional[Finding]:
+    def _convert_eslint_result(self, result: dict[str, Any]) -> Finding | None:
         """Convert ESLint result to Finding."""
         severity_map = {
             2: Severity.HIGH,     # Error

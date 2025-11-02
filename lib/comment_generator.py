@@ -8,10 +8,11 @@ This module uses the Anthropic SDK directly (not Claude Code CLI) for performanc
 - Better cost efficiency
 """
 
-import anthropic
 import os
-from typing import List, Dict, Any, Optional
-from .models import Finding, AggregatedResults, Severity, Metrics
+
+import anthropic
+
+from .models import AggregatedResults, Finding, Metrics, Severity
 
 
 class CommentGenerator:
@@ -37,7 +38,7 @@ Comment style guide:
 - Always include "why this matters" and "how to fix"
 - Use code blocks with syntax highlighting"""
 
-    def __init__(self, api_key: Optional[str] = None, metrics: Optional[Metrics] = None, model: Optional[str] = None):
+    def __init__(self, api_key: str | None = None, metrics: Metrics | None = None, model: str | None = None):
         """
         Initialize comment generator.
 
@@ -130,9 +131,9 @@ Output only the comment, no preamble."""
 
     def generate_batch_comments(
         self,
-        findings: List[Finding],
+        findings: list[Finding],
         batch_size: int = 5
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Generate multiple inline comments efficiently.
 
@@ -153,7 +154,7 @@ Output only the comment, no preamble."""
 
         return all_comments
 
-    def _generate_batch_internal(self, findings: List[Finding]) -> List[str]:
+    def _generate_batch_internal(self, findings: list[Finding]) -> list[str]:
         """Generate comments for a batch of findings in one API call."""
 
         # Build batch prompt
@@ -206,7 +207,7 @@ etc."""
 
         return comments
 
-    def _parse_batch_response(self, batch_text: str, expected_count: int) -> List[str]:
+    def _parse_batch_response(self, batch_text: str, expected_count: int) -> list[str]:
         """Parse batch response into individual comments."""
         import re
 

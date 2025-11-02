@@ -2,12 +2,11 @@
 Base analyzer class for all static analysis tools.
 """
 import subprocess
-import json
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any
 
-from ..models import Finding, Severity, FindingCategory
+from ..models import Finding, FindingCategory, Severity
 
 
 class BaseAnalyzer(ABC):
@@ -33,7 +32,7 @@ class BaseAnalyzer(ABC):
         pass
 
     @abstractmethod
-    def run_analysis(self, files: List[str]) -> List[Finding]:
+    def run_analysis(self, files: list[str]) -> list[Finding]:
         """
         Run analysis on specified files.
 
@@ -52,8 +51,8 @@ class BaseAnalyzer(ABC):
 
     def run_command(
         self,
-        command: List[str],
-        cwd: Optional[str] = None,
+        command: list[str],
+        cwd: str | None = None,
         capture_output: bool = True
     ) -> subprocess.CompletedProcess:
         """
@@ -76,16 +75,16 @@ class BaseAnalyzer(ABC):
                 timeout=300  # 5 minute timeout
             )
             return result
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Command timed out: {' '.join(command)}")
-        except FileNotFoundError:
-            raise RuntimeError(f"Command not found: {command[0]}")
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError(f"Command timed out: {' '.join(command)}") from e
+        except FileNotFoundError as e:
+            raise RuntimeError(f"Command not found: {command[0]}") from e
 
     def filter_files_by_extension(
         self,
-        files: List[str],
-        extensions: List[str]
-    ) -> List[str]:
+        files: list[str],
+        extensions: list[str]
+    ) -> list[str]:
         """
         Filter files by extension.
 
@@ -103,9 +102,9 @@ class BaseAnalyzer(ABC):
 
     def standardize_results(
         self,
-        raw_results: List[Dict[str, Any]],
+        raw_results: list[dict[str, Any]],
         tool_name: str
-    ) -> List[Finding]:
+    ) -> list[Finding]:
         """
         Convert tool-specific results to standard Finding objects.
 
@@ -128,9 +127,9 @@ class BaseAnalyzer(ABC):
     @abstractmethod
     def _convert_to_finding(
         self,
-        raw_result: Dict[str, Any],
+        raw_result: dict[str, Any],
         tool_name: str
-    ) -> Optional[Finding]:
+    ) -> Finding | None:
         """
         Convert a single raw result to a Finding object.
         Must be implemented by each analyzer.
@@ -147,7 +146,7 @@ class BaseAnalyzer(ABC):
     def map_severity(
         self,
         tool_severity: str,
-        severity_map: Optional[Dict[str, Severity]] = None
+        severity_map: dict[str, Severity] | None = None
     ) -> Severity:
         """
         Map tool-specific severity to standard severity level.
