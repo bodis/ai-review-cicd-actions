@@ -55,21 +55,14 @@ The workflow automatically installs Claude Code CLI:
 
 ```yaml
 - name: Install Claude Code CLI
-  run: |
-    curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
-    echo "$HOME/.local/bin" >> $GITHUB_PATH
-    claude --version
+  run: npm install -g @anthropic-ai/claude-code
 ```
 
 ### Local Development
 
 ```bash
-# Install Claude Code
-curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
-
-# Add to PATH
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+# Install Claude Code via npm
+npm install -g @anthropic-ai/claude-code
 
 # Verify installation
 claude --version
@@ -134,11 +127,8 @@ Run `/status` in a Claude Code session to see:
 ### "Claude Code CLI not found"
 
 ```bash
-# Install
-curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
-
-# Add to PATH
-export PATH="$HOME/.local/bin:$PATH"
+# Install via npm
+npm install -g @anthropic-ai/claude-code
 
 # Verify
 which claude
@@ -291,9 +281,7 @@ jobs:
         run: uv sync
 
       - name: Install Claude Code CLI
-        run: |
-          curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        run: npm install -g @anthropic-ai/claude-code
 
       - name: Run Review
         env:

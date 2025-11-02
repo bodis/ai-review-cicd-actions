@@ -39,10 +39,7 @@ jobs:
         run: uv sync
 
       - name: Install Claude Code CLI
-        run: |
-          curl -fsSL https://storage.googleapis.com/anthropic-files/claude-code/install.sh | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          claude --version
+        run: npm install -g @anthropic-ai/claude-code
 
       - name: Validate Environment
         env:
