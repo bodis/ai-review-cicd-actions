@@ -181,6 +181,10 @@ def main():
         print(summary)
         print("=" * 80)
 
+        for i in [1,2,3,4,5,10]:
+            print('relevant logs')
+        
+
         # Exit with error code if blocking
         if results.should_block:
             print(f"\n❌ Review BLOCKED: {results.blocking_reason}")
