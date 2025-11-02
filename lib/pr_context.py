@@ -21,6 +21,8 @@ class PRContextBuilder:
         '.ts': 'typescript',
         '.tsx': 'typescript',
         '.java': 'java',
+        '.kt': 'kotlin',
+        '.kts': 'kotlin',
         '.go': 'go',
         '.rs': 'rust',
         '.rb': 'ruby',
@@ -34,16 +36,36 @@ class PRContextBuilder:
         '.yml': 'yaml',
         '.yaml': 'yaml',
         '.json': 'json',
-        '.md': 'markdown'
+        '.md': 'markdown',
+        '.xml': 'xml',
+        '.gradle': 'gradle',
+        '.properties': 'properties'
     }
 
     DEPENDENCY_FILES = {
+        # Python dependency files
         'requirements.txt': 'python',
+        'requirements-dev.txt': 'python',
+        'requirements.in': 'python',
+        'pyproject.toml': 'python',  # UV, Poetry, PDM, Hatch
+        'poetry.lock': 'python',
+        'uv.lock': 'python',
         'Pipfile': 'python',
-        'pyproject.toml': 'python',
+        'Pipfile.lock': 'python',
+        'setup.py': 'python',
+        'setup.cfg': 'python',
+        # JavaScript/TypeScript
         'package.json': 'javascript',
         'package-lock.json': 'javascript',
         'yarn.lock': 'javascript',
+        'pnpm-lock.yaml': 'javascript',
+        'bun.lockb': 'javascript',
+        # Java
+        'pom.xml': 'java',
+        'build.gradle': 'java',
+        'build.gradle.kts': 'java',
+        'gradle.properties': 'java',
+        # Other languages
         'go.mod': 'go',
         'go.sum': 'go',
         'Cargo.toml': 'rust',

@@ -13,6 +13,7 @@ from .config_manager import ConfigManager
 from .pr_context import PRContextBuilder
 from .analyzers.python_analyzer import PythonAnalyzer
 from .analyzers.javascript_analyzer import JavaScriptAnalyzer
+from .analyzers.java_analyzer import JavaAnalyzer
 
 
 class ReviewOrchestrator:
@@ -257,6 +258,14 @@ class ReviewOrchestrator:
 
         if any(lang in pr_context.detected_languages for lang in ['javascript', 'typescript']):
             analyzer = JavaScriptAnalyzer(
+                self.project_root,
+                tools=aspect.get('tools')
+            )
+            if analyzer.is_available():
+                findings.extend(analyzer.run_analysis(changed_file_paths))
+
+        if 'java' in pr_context.detected_languages:
+            analyzer = JavaAnalyzer(
                 self.project_root,
                 tools=aspect.get('tools')
             )

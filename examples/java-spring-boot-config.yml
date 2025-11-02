@@ -1,0 +1,176 @@
+# Example Configuration for Spring Boot Java Project
+# Place this at .github/ai-review-config.yml in your Spring Boot project
+
+project_context:
+  name: "Spring Boot Payment Service"
+  architecture: "Spring Boot Microservices with REST API"
+  technology_stack:
+    - Java 17
+    - Spring Boot 3.2
+    - Spring Data JPA
+    - PostgreSQL
+    - Maven/Gradle
+
+  critical_paths:
+    - "src/main/java/com/company/payment/"
+    - "src/main/java/com/company/transaction/"
+    - "src/main/java/com/company/auth/"
+
+# Enable comprehensive Java analysis
+review_aspects:
+  # Free open-source tools (run in parallel)
+  - name: java_static_analysis
+    enabled: true
+    type: classical
+    tools:
+      - spotbugs          # Bytecode analysis (400+ bug patterns)
+      - pmd               # Source code analysis
+      - checkstyle        # Code style enforcement
+      - jacoco            # Test coverage
+      - owasp-dependency-check  # Security vulnerabilities in dependencies
+    parallel: true
+
+  # Optional: Add paid tools
+  # Uncomment and configure if you have subscriptions
+
+  # - name: java_sonarcloud
+  #   enabled: true
+  #   type: classical
+  #   tools:
+  #     - sonarcloud
+  #   parallel: false
+
+  # - name: java_snyk
+  #   enabled: true
+  #   type: classical
+  #   tools:
+  #     - snyk
+  #   parallel: false
+
+  # AI-driven reviews (run sequentially to share context)
+  - name: security_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/security-review.md
+    parallel: false
+
+  - name: architecture_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/architecture-review.md
+    parallel: false
+
+  - name: code_quality_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/base-review.md
+    parallel: false
+
+  - name: performance_review
+    enabled: true
+    type: ai
+    prompt_file: prompts/performance-review.md
+    parallel: false
+
+# Spring Boot specific constraints
+project_constraints:
+  # REST API Best Practices
+  - "All @RestController methods must have proper @Valid annotations for request bodies"
+  - "API endpoints must return ResponseEntity<T> not direct objects"
+  - "Use @RequestMapping at class level, specific methods (@GetMapping, @PostMapping) at method level"
+
+  # Data & Persistence
+  - "Never use java.util.Date - use java.time.* (LocalDate, LocalDateTime, Instant) instead"
+  - "All database queries must use Spring Data repositories, not raw JDBC"
+  - "Use @Transactional for multi-step database operations"
+  - "Never expose JPA entities directly in REST APIs - use DTOs"
+
+  # Security
+  - "Sensitive data (passwords, tokens, API keys) must not be logged"
+  - "All authentication endpoints must use BCryptPasswordEncoder or Argon2"
+  - "API keys must be stored in environment variables or Vault"
+  - "All @PreAuthorize and @Secured annotations must be thoroughly tested"
+
+  # Error Handling
+  - "Use @ControllerAdvice for global exception handling"
+  - "Return proper HTTP status codes (not always 200 OK)"
+  - "Include error codes and messages in error responses"
+
+  # Configuration
+  - "Use @ConfigurationProperties instead of @Value for grouped properties"
+  - "Never hardcode URLs, credentials, or environment-specific values"
+  - "Use Spring Profiles for environment-specific configuration"
+
+  # Testing
+  - "All service methods must have unit tests with Mockito"
+  - "Controller endpoints must have integration tests with MockMvc or WebTestClient"
+  - "Minimum 80% code coverage required"
+
+  # Performance
+  - "Avoid N+1 query problems - use @EntityGraph or JOIN FETCH"
+  - "Use caching (@Cacheable) for expensive operations"
+  - "Implement pagination for list endpoints"
+
+# Custom Java-specific rules
+custom_rules:
+  # Detect old Date API usage
+  - pattern: "import java\\.util\\.Date;"
+    message: "Use java.time.* classes (LocalDate, LocalDateTime, Instant) instead of java.util.Date"
+    severity: "medium"
+
+  # Detect entity exposure in REST API
+  - pattern: "@RestController.*\\n.*public.*Entity\\{"
+    message: "Don't expose JPA entities directly in REST APIs. Use DTOs instead."
+    severity: "high"
+
+  # Detect missing input validation
+  - pattern: "@PostMapping|@PutMapping.*\\n.*@RequestBody(?!.*@Valid)"
+    message: "Add @Valid annotation to validate request bodies"
+    severity: "medium"
+
+  # Detect System.out/err usage
+  - pattern: "System\\.(out|err)\\.print"
+    message: "Use SLF4J logger instead of System.out/err"
+    severity: "low"
+
+  # Detect hardcoded credentials
+  - pattern: "password\\s*=\\s*\".*\"|apiKey\\s*=\\s*\".*\""
+    message: "Never hardcode credentials. Use environment variables or configuration properties."
+    severity: "critical"
+
+  # Detect missing @Transactional
+  - pattern: "@Service.*\\n.*public.*save.*\\n.*repository\\.save.*\\n.*repository\\.save"
+    message: "Multiple save operations should be wrapped in @Transactional"
+    severity: "medium"
+
+  # Detect raw SQL queries
+  - pattern: "@Query.*nativeQuery\\s*=\\s*true"
+    message: "Prefer JPQL over native SQL queries for database portability"
+    severity: "low"
+
+# Blocking rules (strict for payment service)
+blocking_rules:
+  block_on_critical: true
+  block_on_high: true  # Stricter for production services
+
+  max_findings:
+    critical: 0   # Zero tolerance for critical issues
+    high: 0       # Zero tolerance for high severity (strict for Spring Boot)
+    medium: 15    # Allow up to 15 medium severity issues
+    low: 30       # Allow up to 30 low severity issues
+
+# GitHub integration settings
+github:
+  post_summary_comment: true
+  post_inline_comments: true
+  update_status_check: true
+
+  # Show inline comments for medium severity and above
+  inline_comment_severity_threshold: "medium"
+
+  # Create GitHub review event
+  create_review_event: true
+
+# Company policies source (optional)
+# Uncomment and update with your company's policies URL
+# company_policies_source: "github://your-org/policies/main/java-spring-boot-policies.yml"
