@@ -8,24 +8,26 @@ import time
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from .models import Finding, Severity, FindingCategory, PRContext
+from .models import Finding, Severity, FindingCategory, PRContext, Metrics
 from .injection import InjectionSystem
 
 
 class AIReviewEngine:
     """Executes AI-driven code reviews using Claude Code CLI."""
 
-    def __init__(self, project_root: str = ".", config: Optional[Dict[str, Any]] = None):
+    def __init__(self, project_root: str = ".", config: Optional[Dict[str, Any]] = None, metrics: Optional[Metrics] = None):
         """
         Initialize AI review engine.
 
         Args:
             project_root: Root directory of the project
             config: Configuration dictionary
+            metrics: Metrics object for tracking token usage
         """
         self.project_root = Path(project_root)
         self.config = config or {}
         self.injection_system = InjectionSystem(config)
+        self.metrics = metrics  # Optional metrics tracking
 
     def run_claude_review(
         self,
@@ -120,11 +122,19 @@ class AIReviewEngine:
                     f"Output: {result.stdout[:500]}"
                 )
 
-            # Log token usage from stderr
+            # Extract and log token usage from stderr
             usage_info = self._extract_token_usage(result.stderr)
             if usage_info:
                 print(f"📊 Tokens: {usage_info['input']} in, {usage_info['output']} out")
                 print(f"💰 Cost: ${usage_info['cost']:.4f}")
+
+                # Track in metrics if available
+                if self.metrics:
+                    self.metrics.add_tokens(
+                        usage_info['input'],
+                        usage_info['output'],
+                        usage_info.get('cache', 0)
+                    )
 
             return result.stdout
 

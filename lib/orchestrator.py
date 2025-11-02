@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 
 from .models import (
     PRContext, ReviewResult, AggregatedResults,
-    Finding, Severity, ChangeType
+    Finding, Severity, ChangeType, Metrics
 )
 from .config_manager import ConfigManager
 from .pr_context import PRContextBuilder
@@ -30,6 +30,7 @@ class ReviewOrchestrator:
         self.config = config
         self.project_root = project_root
         self.review_results: List[ReviewResult] = []
+        self.metrics = Metrics()  # Initialize metrics tracking
 
     def run_review_pipeline(
         self,
@@ -38,7 +39,7 @@ class ReviewOrchestrator:
         github_token: Optional[str] = None
     ) -> AggregatedResults:
         """
-        Main entry point for running the complete review pipeline.
+        Main entry point for running the complete review pipeline with error recovery.
 
         Args:
             repo_name: Repository name (owner/repo)
@@ -49,48 +50,151 @@ class ReviewOrchestrator:
             AggregatedResults with all findings
         """
         start_time = time.time()
+        errors = []
+        warnings = []
 
-        # Step 1: Build PR context
+        # Step 1: Build PR context with error recovery
         print(f"Building context for PR #{pr_number}...")
-        pr_builder = PRContextBuilder(github_token)
-        pr_context = pr_builder.build_context(repo_name, pr_number)
+        try:
+            pr_builder = PRContextBuilder(github_token)
+            pr_context = pr_builder.build_context(repo_name, pr_number)
 
-        print(f"PR: {pr_context.title}")
-        print(f"Changed files: {len(pr_context.changed_files)}")
-        print(f"Languages: {', '.join(pr_context.detected_languages)}")
-        print(f"Change types: {', '.join([ct.value for ct in pr_context.change_types])}")
+            print(f"PR: {pr_context.title}")
+            print(f"Changed files: {len(pr_context.changed_files)}")
+            print(f"Languages: {', '.join(pr_context.detected_languages)}")
+            print(f"Change types: {', '.join([ct.value for ct in pr_context.change_types])}")
 
-        # Step 2: Execute review aspects
+        except Exception as e:
+            error_msg = f"Failed to fetch PR context: {str(e)[:200]}"
+            errors.append(error_msg)
+            print(f"  ✗ ERROR: {error_msg}")
+
+            # Create minimal context to allow pipeline to continue
+            pr_context = PRContext(
+                pr_number=pr_number,
+                title="[Error fetching PR]",
+                description="",
+                author="unknown",
+                base_branch="main",
+                head_branch="unknown",
+                labels=[],
+                changed_files=[],
+                diff="",
+                detected_languages=[],
+                change_types=[]
+            )
+            warnings.append("Using minimal PR context due to fetch failure")
+
+        # Step 2: Execute review aspects with error recovery
         print("\nRunning review aspects...")
         review_aspects = self.config.get('review_aspects', [])
         enabled_aspects = [a for a in review_aspects if a.get('enabled', True)]
 
-        self.review_results = self.execute_review_aspects(
+        self.review_results, aspect_errors = self.execute_review_aspects_with_recovery(
             enabled_aspects,
             pr_context
         )
+        errors.extend(aspect_errors)
 
-        # Step 3: Aggregate results
+        # Step 3: Evaluate if we have enough results
+        failed_count = sum(1 for r in self.review_results if not r.success)
+        if failed_count > len(enabled_aspects) / 2:
+            warnings.append(f"Too many aspects failed ({failed_count}/{len(enabled_aspects)})")
+            should_block = True
+            blocking_reason = "Too many review aspects failed - results uncertain"
+        elif len(self.review_results) == 0 or all(not r.success for r in self.review_results):
+            errors.append("All review aspects failed")
+            should_block = True
+            blocking_reason = "Review pipeline encountered critical errors"
+        else:
+            should_block = False
+            blocking_reason = None
+
+        # Step 4: Aggregate results
         print("\nAggregating results...")
         aggregated = self.aggregate_results(pr_context, self.review_results)
+        aggregated.errors = errors
+        aggregated.warnings = warnings
 
-        # Step 4: Apply blocking rules
-        should_block, reason = self.apply_blocking_rules(
-            aggregated.all_findings,
-            self.config.get('blocking_rules', {})
-        )
+        # Step 5: Apply blocking rules (only if we have some successful results)
+        if not should_block:
+            should_block, blocking_reason = self.apply_blocking_rules(
+                aggregated.all_findings,
+                self.config.get('blocking_rules', {})
+            )
 
         aggregated.should_block = should_block
-        aggregated.blocking_reason = reason
-        aggregated.total_execution_time = time.time() - start_time
+        aggregated.blocking_reason = blocking_reason
 
-        print(f"\nReview complete in {aggregated.total_execution_time:.2f}s")
-        print(f"Total findings: {len(aggregated.all_findings)}")
-        print(f"Should block: {should_block}")
-        if reason:
-            print(f"Reason: {reason}")
+        # Step 6: Finalize metrics
+        self.metrics.total_duration = time.time() - start_time
+        aggregated.total_execution_time = self.metrics.total_duration
+        aggregated.metrics = self.metrics
+
+        # Print summary
+        print(f"\n{'='*80}")
+        print(f"Review complete in {aggregated.total_execution_time:.2f}s")
+        print(f"Findings: {len(aggregated.all_findings)}")
+        print(f"Successful aspects: {len([r for r in self.review_results if r.success])}/{len(enabled_aspects)}")
+        print(f"Failed aspects: {failed_count}")
+        print(f"Status: {'❌ BLOCKED' if should_block else '✅ APPROVED'}")
+        if blocking_reason:
+            print(f"Reason: {blocking_reason}")
+
+        # Print metrics if available
+        if self.metrics.api_calls > 0:
+            print(f"\n📊 API Usage:")
+            print(f"  Calls: {self.metrics.api_calls}")
+            print(f"  Tokens: {self.metrics.input_tokens} in, {self.metrics.output_tokens} out")
+            if self.metrics.cache_read_tokens > 0:
+                print(f"  Cache: {self.metrics.cache_read_tokens} tokens")
+            print(f"  Cost: ${self.metrics.estimated_cost_usd:.4f}")
+
+        print(f"{'='*80}\n")
 
         return aggregated
+
+    def execute_review_aspects_with_recovery(
+        self,
+        aspects: List[Dict[str, Any]],
+        pr_context: PRContext
+    ) -> tuple[List[ReviewResult], List[str]]:
+        """
+        Execute all review aspects with error recovery and timeout handling.
+
+        Args:
+            aspects: List of review aspect configurations
+            pr_context: PR context information
+
+        Returns:
+            Tuple of (review results, errors)
+        """
+        results = []
+        errors = []
+
+        # Separate parallel and sequential aspects
+        parallel_aspects = [a for a in aspects if a.get('parallel', True)]
+        sequential_aspects = [a for a in aspects if not a.get('parallel', True)]
+
+        # Run parallel aspects with error recovery
+        if parallel_aspects:
+            print(f"Running {len(parallel_aspects)} aspects in parallel...")
+            parallel_results, parallel_errors = self._execute_parallel_with_recovery(
+                parallel_aspects, pr_context
+            )
+            results.extend(parallel_results)
+            errors.extend(parallel_errors)
+
+        # Run sequential aspects with error recovery
+        if sequential_aspects:
+            print(f"Running {len(sequential_aspects)} aspects sequentially...")
+            sequential_results, sequential_errors = self._execute_sequential_with_recovery(
+                sequential_aspects, pr_context
+            )
+            results.extend(sequential_results)
+            errors.extend(sequential_errors)
+
+        return results, errors
 
     def execute_review_aspects(
         self,
@@ -100,6 +204,8 @@ class ReviewOrchestrator:
         """
         Execute all review aspects in parallel or sequential based on config.
 
+        Deprecated: Use execute_review_aspects_with_recovery instead.
+
         Args:
             aspects: List of review aspect configurations
             pr_context: PR context information
@@ -107,40 +213,26 @@ class ReviewOrchestrator:
         Returns:
             List of review results
         """
-        results = []
-
-        # Separate parallel and sequential aspects
-        parallel_aspects = [a for a in aspects if a.get('parallel', True)]
-        sequential_aspects = [a for a in aspects if not a.get('parallel', True)]
-
-        # Run parallel aspects
-        if parallel_aspects:
-            print(f"Running {len(parallel_aspects)} aspects in parallel...")
-            parallel_results = self._execute_parallel(parallel_aspects, pr_context)
-            results.extend(parallel_results)
-
-        # Run sequential aspects (typically AI reviews that share context)
-        if sequential_aspects:
-            print(f"Running {len(sequential_aspects)} aspects sequentially...")
-            sequential_results = self._execute_sequential(sequential_aspects, pr_context)
-            results.extend(sequential_results)
-
+        results, _ = self.execute_review_aspects_with_recovery(aspects, pr_context)
         return results
 
-    def _execute_parallel(
+    def _execute_parallel_with_recovery(
         self,
         aspects: List[Dict[str, Any]],
         pr_context: PRContext
-    ) -> List[ReviewResult]:
-        """Execute review aspects in parallel."""
+    ) -> tuple[List[ReviewResult], List[str]]:
+        """Execute review aspects in parallel with timeout and error recovery."""
         results = []
+        errors = []
+        timeout = self.config.get('aspect_timeout', 300)  # 5 minutes default
 
         with ThreadPoolExecutor(max_workers=4) as executor:
             future_to_aspect = {
                 executor.submit(
-                    self._execute_single_aspect,
+                    self._execute_single_aspect_with_timeout,
                     aspect,
-                    pr_context
+                    pr_context,
+                    timeout
                 ): aspect
                 for aspect in aspects
             }
@@ -150,9 +242,18 @@ class ReviewOrchestrator:
                 try:
                     result = future.result()
                     results.append(result)
-                    print(f"  ✓ {aspect['name']}: {len(result.findings)} findings")
+
+                    if result.success:
+                        print(f"  ✓ {aspect['name']}: {len(result.findings)} findings ({result.execution_time:.1f}s)")
+                    else:
+                        print(f"  ✗ {aspect['name']}: Failed - {result.error_message}")
+                        errors.append(f"Aspect '{aspect['name']}' failed: {result.error_message}")
+
                 except Exception as e:
-                    print(f"  ✗ {aspect['name']}: Failed - {e}")
+                    error_msg = f"Aspect '{aspect['name']}' crashed: {str(e)[:100]}"
+                    errors.append(error_msg)
+                    print(f"  ✗ {aspect['name']}: CRASHED - {str(e)[:100]}")
+
                     results.append(ReviewResult(
                         aspect_name=aspect['name'],
                         findings=[],
@@ -161,35 +262,58 @@ class ReviewOrchestrator:
                         error_message=str(e)
                     ))
 
-        return results
+        return results, errors
 
-    def _execute_sequential(
+    def _execute_parallel(
         self,
         aspects: List[Dict[str, Any]],
         pr_context: PRContext
     ) -> List[ReviewResult]:
-        """Execute review aspects sequentially."""
+        """Execute review aspects in parallel (deprecated)."""
+        results, _ = self._execute_parallel_with_recovery(aspects, pr_context)
+        return results
+
+    def _execute_sequential_with_recovery(
+        self,
+        aspects: List[Dict[str, Any]],
+        pr_context: PRContext
+    ) -> tuple[List[ReviewResult], List[str]]:
+        """Execute review aspects sequentially with timeout and error recovery."""
         results = []
+        errors = []
         shared_context = {}
+        timeout = self.config.get('aspect_timeout', 300)
 
         for aspect in aspects:
             try:
-                result = self._execute_single_aspect(
+                result = self._execute_single_aspect_with_timeout(
                     aspect,
                     pr_context,
+                    timeout,
                     shared_context
                 )
                 results.append(result)
-                print(f"  ✓ {aspect['name']}: {len(result.findings)} findings")
 
-                # Update shared context for next aspect
-                shared_context[aspect['name']] = {
-                    'findings': result.findings,
-                    'metadata': result.metadata
-                }
+                if result.success:
+                    print(f"  ✓ {aspect['name']}: {len(result.findings)} findings ({result.execution_time:.1f}s)")
+
+                    # Update shared context for next aspect
+                    shared_context[aspect['name']] = {
+                        'findings': result.findings,
+                        'metadata': result.metadata
+                    }
+                else:
+                    print(f"  ✗ {aspect['name']}: Failed - {result.error_message}")
+                    errors.append(f"Aspect '{aspect['name']}' failed: {result.error_message}")
+
+                    # Continue with other aspects despite failure
+                    continue
 
             except Exception as e:
-                print(f"  ✗ {aspect['name']}: Failed - {e}")
+                error_msg = f"Aspect '{aspect['name']}' crashed: {str(e)[:100]}"
+                errors.append(error_msg)
+                print(f"  ✗ {aspect['name']}: CRASHED - {str(e)[:100]}")
+
                 results.append(ReviewResult(
                     aspect_name=aspect['name'],
                     findings=[],
@@ -198,7 +322,84 @@ class ReviewOrchestrator:
                     error_message=str(e)
                 ))
 
+                # Continue with other aspects
+                continue
+
+        return results, errors
+
+    def _execute_sequential(
+        self,
+        aspects: List[Dict[str, Any]],
+        pr_context: PRContext
+    ) -> List[ReviewResult]:
+        """Execute review aspects sequentially (deprecated)."""
+        results, _ = self._execute_sequential_with_recovery(aspects, pr_context)
         return results
+
+    def _execute_single_aspect_with_timeout(
+        self,
+        aspect: Dict[str, Any],
+        pr_context: PRContext,
+        timeout: int,
+        shared_context: Optional[Dict[str, Any]] = None
+    ) -> ReviewResult:
+        """
+        Execute a single review aspect with timeout.
+
+        Args:
+            aspect: Aspect configuration
+            pr_context: PR context
+            timeout: Timeout in seconds
+            shared_context: Context from previous sequential reviews
+
+        Returns:
+            ReviewResult
+        """
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
+
+        start_time = time.time()
+        aspect_name = aspect.get('name')
+
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self._execute_single_aspect,
+                    aspect,
+                    pr_context,
+                    shared_context
+                )
+
+                try:
+                    result = future.result(timeout=timeout)
+
+                    # Track aspect duration in metrics
+                    self.metrics.aspect_durations[aspect_name] = result.execution_time
+
+                    return result
+
+                except FuturesTimeoutError:
+                    execution_time = time.time() - start_time
+                    self.metrics.aspect_durations[aspect_name] = execution_time
+
+                    return ReviewResult(
+                        aspect_name=aspect_name,
+                        findings=[],
+                        execution_time=execution_time,
+                        success=False,
+                        error_message=f"Timeout after {timeout}s"
+                    )
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            self.metrics.aspect_durations[aspect_name] = execution_time
+
+            return ReviewResult(
+                aspect_name=aspect_name,
+                findings=[],
+                execution_time=execution_time,
+                success=False,
+                error_message=str(e)
+            )
 
     def _execute_single_aspect(
         self,
@@ -281,14 +482,34 @@ class ReviewOrchestrator:
         shared_context: Optional[Dict[str, Any]] = None
     ) -> List[Finding]:
         """
-        Run AI-driven review (placeholder for now).
+        Run AI-driven review using Claude Code CLI.
 
-        Will be implemented with Claude Code CLI integration.
+        Args:
+            aspect: AI review aspect configuration
+            pr_context: PR context
+            shared_context: Context from previous reviews
+
+        Returns:
+            List of findings from AI review
         """
-        # TODO: Implement AI review integration
-        # This will be implemented in the ai_review.py module
-        print(f"  AI review '{aspect['name']}' not yet implemented")
-        return []
+        from .ai_review import AIReviewEngine
+
+        try:
+            # Create AI review engine with metrics tracking
+            ai_engine = AIReviewEngine(
+                project_root=str(self.project_root),
+                config=self.config,
+                metrics=self.metrics
+            )
+
+            # Run the review
+            findings = ai_engine.run_review(aspect, pr_context, shared_context)
+
+            return findings
+
+        except Exception as e:
+            print(f"  AI review '{aspect['name']}' failed: {str(e)[:100]}")
+            return []
 
     def aggregate_results(
         self,

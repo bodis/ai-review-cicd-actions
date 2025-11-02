@@ -162,7 +162,11 @@ def main():
         # Post to GitHub
         if not args.no_github_post:
             print("\nPosting results to GitHub...")
-            reporter = GitHubReporter(github_token)
+            reporter = GitHubReporter(
+                github_token=github_token,
+                anthropic_api_key=anthropic_key,
+                metrics=results.metrics  # Pass metrics for comment generation tracking
+            )
             reporter.post_review_results(
                 repo_name=args.repo,
                 pr_number=args.pr,

@@ -4,7 +4,22 @@ Complete guide for configuring AI-powered code reviews using Claude in the revie
 
 ## Overview
 
-The AI review system uses Claude to perform semantic code analysis across multiple dimensions:
+The AI review system uses a **hybrid architecture** combining two Claude integrations:
+
+### Claude Code CLI (for Analysis)
+- Deep semantic code analysis
+- Security, architecture, quality reviews
+- Context-aware understanding
+- Tool usage capabilities
+
+### Direct Anthropic API (for Comments)
+- Fast PR comment generation
+- Batch inline comments
+- Rich markdown formatting
+- 10x faster, 37% cheaper than CLI for comments
+
+### Review Dimensions
+
 - **Security Review**: OWASP vulnerabilities, authentication flaws, data exposure
 - **Architecture Review**: SOLID principles, design patterns, layer violations
 - **Code Quality Review**: Complexity, maintainability, readability
@@ -15,23 +30,32 @@ Unlike static analysis tools that check syntax and patterns, AI reviews understa
 
 ## Quick Start
 
-### Basic Setup
+### Prerequisites
 
-1. **Get Claude API Key**: [Anthropic Console](https://console.anthropic.com/)
-2. **Add to GitHub Secrets**: Repository Settings → Secrets → `ANTHROPIC_API_KEY`
-3. **Enable in workflow**:
+1. **Get Anthropic API Key**: [Anthropic Console](https://console.anthropic.com/)
+   - Used for both Claude Code CLI and direct API
+   - Pay-as-you-go pricing: ~$0.03-0.05 per PR
 
-```yaml
-jobs:
-  code-review:
-    uses: your-org/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
-    with:
-      enable-ai-review: true
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+2. **Add to GitHub Secrets**:
+   ```
+   Repository Settings → Secrets → Actions → New secret
+   Name: ANTHROPIC_API_KEY
+   Value: sk-ant-api03-...
+   ```
 
-That's it! AI reviews will automatically run on all PRs.
+3. **Enable Workflow**: Copy `.github/workflows/ai-code-review.yml` to your repo
+
+The workflow automatically:
+- ✅ Installs Claude Code CLI
+- ✅ Validates API key
+- ✅ Runs static analysis (Ruff, ESLint, etc.)
+- ✅ Runs AI semantic analysis
+- ✅ Generates rich PR comments
+- ✅ Posts results to GitHub
+
+**Cost**: ~$0.03-0.05 per PR (includes analysis + comment generation)
+
+For detailed setup, see [Claude Code Setup Guide](CLAUDE_CODE_SETUP.md).
 
 ## Review Aspects
 

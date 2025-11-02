@@ -6,31 +6,33 @@ from typing import List, Dict, Any, Optional
 from github import Github
 from github.PullRequest import PullRequest
 
-from .models import AggregatedResults, Finding, Severity
+from .models import AggregatedResults, Finding, Severity, Metrics
 from .comment_generator import CommentGenerator
 
 
 class GitHubReporter:
     """Posts review results back to GitHub PR."""
 
-    def __init__(self, github_token: Optional[str] = None, anthropic_api_key: Optional[str] = None):
+    def __init__(self, github_token: Optional[str] = None, anthropic_api_key: Optional[str] = None, metrics: Optional[Metrics] = None):
         """
         Initialize GitHub reporter.
 
         Args:
             github_token: GitHub API token. If None, uses GITHUB_TOKEN env var.
             anthropic_api_key: Anthropic API key for comment generation
+            metrics: Metrics object for tracking token usage
         """
         token = github_token or os.getenv('GITHUB_TOKEN')
         if not token:
             raise ValueError("GitHub token is required")
 
         self.github = Github(token)
+        self.metrics = metrics
 
         # Initialize comment generator with direct API (for fast, rich comments)
         api_key = anthropic_api_key or os.getenv('ANTHROPIC_API_KEY')
         try:
-            self.comment_generator = CommentGenerator(api_key) if api_key else None
+            self.comment_generator = CommentGenerator(api_key, metrics=metrics) if api_key else None
         except Exception as e:
             print(f"⚠️ Warning: Could not initialize CommentGenerator: {e}")
             print("   Falling back to simple comment formatting")

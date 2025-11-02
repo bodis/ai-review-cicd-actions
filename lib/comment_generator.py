@@ -11,7 +11,7 @@ This module uses the Anthropic SDK directly (not Claude Code CLI) for performanc
 import anthropic
 import os
 from typing import List, Dict, Any, Optional
-from .models import Finding, AggregatedResults, Severity
+from .models import Finding, AggregatedResults, Severity, Metrics
 
 
 class CommentGenerator:
@@ -37,12 +37,13 @@ Comment style guide:
 - Always include "why this matters" and "how to fix"
 - Use code blocks with syntax highlighting"""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, metrics: Optional[Metrics] = None):
         """
         Initialize comment generator.
 
         Args:
             api_key: Anthropic API key (uses ANTHROPIC_API_KEY env var if not provided)
+            metrics: Metrics object for tracking token usage
         """
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         if not self.api_key:
@@ -50,6 +51,7 @@ Comment style guide:
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
         self.model = "claude-3-5-sonnet-20241022"
+        self.metrics = metrics  # Optional metrics tracking
 
     def generate_inline_comment(self, finding: Finding) -> str:
         """
@@ -306,7 +308,7 @@ Output only the comment, no preamble."""
         return summary
 
     def _log_usage(self, usage, operation: str):
-        """Log token usage and cost."""
+        """Log token usage and cost, and track in metrics."""
         input_tokens = getattr(usage, 'input_tokens', 0)
         output_tokens = getattr(usage, 'output_tokens', 0)
         cache_read_tokens = getattr(usage, 'cache_read_input_tokens', 0)
@@ -325,3 +327,11 @@ Output only the comment, no preamble."""
         if cache_read_tokens > 0:
             savings = cache_read_tokens * 0.0000027
             print(f"   📦 Cache hit: {cache_read_tokens} tokens (saved ${savings:.4f})")
+
+        # Track in metrics if available
+        if self.metrics:
+            self.metrics.add_tokens(
+                input_tokens,
+                output_tokens,
+                cache_read_tokens
+            )

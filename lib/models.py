@@ -109,6 +109,48 @@ class ReviewResult:
 
 
 @dataclass
+class Metrics:
+    """Performance and cost metrics for review pipeline."""
+    total_duration: float = 0.0
+    aspect_durations: Dict[str, float] = field(default_factory=dict)
+    api_calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+
+    def add_tokens(self, input_tokens: int, output_tokens: int, cache_tokens: int = 0):
+        """Add token usage and calculate costs."""
+        self.api_calls += 1
+        self.input_tokens += input_tokens
+        self.output_tokens += output_tokens
+        self.cache_read_tokens += cache_tokens
+
+        # Claude 3.5 Sonnet pricing (per million tokens)
+        input_cost = input_tokens * 0.000003  # $3/1M input
+        output_cost = output_tokens * 0.000015  # $15/1M output
+        cache_cost = cache_tokens * 0.0000003  # $0.30/1M cache reads (90% discount)
+
+        self.estimated_cost_usd += input_cost + output_cost + cache_cost
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert metrics to dictionary."""
+        return {
+            'performance': {
+                'total_duration_seconds': round(self.total_duration, 2),
+                'aspect_durations': {k: round(v, 2) for k, v in self.aspect_durations.items()},
+            },
+            'api_usage': {
+                'total_calls': self.api_calls,
+                'input_tokens': self.input_tokens,
+                'output_tokens': self.output_tokens,
+                'cache_read_tokens': self.cache_read_tokens,
+                'estimated_cost_usd': round(self.estimated_cost_usd, 4),
+            }
+        }
+
+
+@dataclass
 class AggregatedResults:
     """Aggregated results from all review aspects."""
     pr_context: PRContext
@@ -118,10 +160,13 @@ class AggregatedResults:
     should_block: bool
     blocking_reason: Optional[str] = None
     total_execution_time: float = 0.0
+    metrics: Optional['Metrics'] = None
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert aggregated results to dictionary."""
-        return {
+        result = {
             "pr_number": self.pr_context.pr_number,
             "should_block": self.should_block,
             "blocking_reason": self.blocking_reason,
@@ -139,6 +184,17 @@ class AggregatedResults:
                 for r in self.review_results
             ]
         }
+
+        if self.metrics:
+            result["metrics"] = self.metrics.to_dict()
+
+        if self.errors:
+            result["errors"] = self.errors
+
+        if self.warnings:
+            result["warnings"] = self.warnings
+
+        return result
 
 
 @dataclass
