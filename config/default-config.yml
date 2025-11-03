@@ -103,3 +103,17 @@ filtering:
   # Only report findings on lines that were changed in the PR
   # This prevents reporting pre-existing issues in unchanged code
   only_changed_lines: true  # Recommended: true (default)
+
+# Deduplication settings
+deduplication:
+  # AI-powered semantic deduplication using Claude Haiku (fast, cheap)
+  # Intelligently detects duplicate findings with different wording
+  # Example: "SQL Injection Risk" = "SQL injection vulnerability"
+  # Cost: ~$0.001 per finding group
+
+  # Claude model for deduplication
+  model: "claude-haiku-4-5"  # Haiku 4.5: fast and cheap
+
+  # Line proximity threshold: findings within this many lines can be duplicates
+  # Useful for multi-line code blocks (SQL statements, function definitions, etc.)
+  proximity_threshold: 10  # Default: 10 lines

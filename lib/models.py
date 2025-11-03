@@ -53,6 +53,7 @@ class Finding:
     tool: str | None = None
     rule_id: str | None = None
     code_snippet: str | None = None
+    aspect: str | None = None  # Review aspect that found this issue (e.g., "security_review", "python_static_analysis")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert finding to dictionary."""
@@ -65,7 +66,8 @@ class Finding:
             "suggestion": self.suggestion,
             "tool": self.tool,
             "rule_id": self.rule_id,
-            "code_snippet": self.code_snippet
+            "code_snippet": self.code_snippet,
+            "aspect": self.aspect
         }
 
 

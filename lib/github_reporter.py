@@ -331,6 +331,23 @@ class GitHubReporter:
             if len(sorted_findings) > 10:
                 lines.append(f"\n... and {len(sorted_findings) - 10} more findings.")
 
+        # Optional Improvements section for approved PRs
+        if not results.should_block and results.all_findings:
+            low_severity_findings = [
+                f for f in results.all_findings
+                if f.severity in [Severity.MEDIUM, Severity.LOW, Severity.INFO]
+            ]
+
+            if low_severity_findings:
+                lines.append("\n### 💡 Optional Improvements\n")
+                lines.append("Consider addressing these lower-priority items to further improve code quality:\n")
+
+                for finding in low_severity_findings[:5]:
+                    lines.append(f"- **{finding.category.value.replace('_', ' ').title()}**: {finding.message[:100]}")
+                    if finding.aspect:
+                        aspect_display = finding.aspect.replace('_', ' ').title()
+                        lines.append(f"  *(from {aspect_display})*")
+
         # Footer
         lines.append("\n---")
         lines.append("*Automated review powered by AI Code Review System*")
@@ -354,10 +371,20 @@ class GitHubReporter:
         if finding.suggestion:
             lines.append(f"\n💡 **Suggestion:**\n{finding.suggestion}")
 
+        # Add detection source information
+        detection_parts = []
+        if finding.aspect:
+            # Format aspect name nicely (e.g., "security_review" -> "Security Review")
+            aspect_display = finding.aspect.replace('_', ' ').title()
+            detection_parts.append(f"Aspect: **{aspect_display}**")
+
         if finding.tool:
-            lines.append(f"\n*Detected by: {finding.tool}*")
+            detection_parts.append(f"Tool: {finding.tool}")
             if finding.rule_id:
-                lines.append(f" (Rule: `{finding.rule_id}`)")
+                detection_parts.append(f"Rule: `{finding.rule_id}`")
+
+        if detection_parts:
+            lines.append(f"\n*{' | '.join(detection_parts)}*")
 
         return "\n".join(lines)
 

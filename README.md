@@ -748,7 +748,9 @@ This demonstration project is production-ready for its research scope. Optional 
 
 6. **Advanced Features** - Auto-fix suggestions via GitHub suggestion comments, historical quality trends, cross-language API contract validation
 
-**Note**: Core features (error recovery, metrics tracking, timeout handling) are already implemented. Secrets are automatically redacted by GitHub Actions. For **production** deployments, consider established commercial solutions (SonarQube, Codacy, CodeRabbit, Qodo Merge) or extend these patterns to your needs.
+7. **Enhanced Deduplication** - Embeddings or AST-based comparison for even more accurate duplicate detection (current AI deduplication already very effective)
+
+**Note**: Core features (error recovery, metrics tracking, timeout handling, AI-powered deduplication, aspect tracking) are already implemented. Secrets are automatically redacted by GitHub Actions. For **production** deployments, consider established commercial solutions (SonarQube, Codacy, CodeRabbit, Qodo Merge) or extend these patterns to your needs.
 
 ---
 
@@ -791,6 +793,33 @@ performance:
 ```
 
 **Default**: Fail fast to save costs and time in CI/CD. Increase to 2-3 for flaky network conditions.
+
+### 🎯 AI-Powered Semantic Deduplication
+
+**Why**: Multiple tools often report the same issue with different wording (e.g., "SQL Injection Risk" vs "SQL injection vulnerability"), creating noisy PR comments.
+
+**How it works**: Uses Claude Haiku 4.5 to intelligently merge duplicate findings:
+1. Groups findings by file and category
+2. Detects semantically similar issues within configurable line proximity (default: 10 lines)
+3. Merges duplicates while preserving:
+   - Highest severity
+   - All tool/aspect sources
+   - Combined suggestions
+
+**Example**:
+- **Before**: 3 separate comments for SQL injection (Bandit line 43, AI security line 44, Pylint line 45)
+- **After**: 1 merged comment showing all three sources
+
+**Configuration**:
+```yaml
+deduplication:
+  model: "claude-haiku-4-5"  # Fast, cheap (~$0.001 per group)
+  proximity_threshold: 10    # Lines to consider nearby
+```
+
+**Aspect Tracking**: Every finding shows which review aspect found it:
+- PR comments: `*Aspect: Security Review, Python Static Analysis | Tool: bandit, claude-ai*`
+- JSON output: `"aspect": "security_review, python_static_analysis"`
 
 ---
 

@@ -35,15 +35,6 @@ class ReviewOrchestrator:
         self.review_results: list[ReviewResult] = []
         self.metrics = Metrics()  # Initialize metrics tracking
 
-    def log_review_to_database(self, pr_number: int, status: str):
-        """Log review status to database - INTENTIONAL FOR TESTING."""
-        import sqlite3
-        conn = sqlite3.connect('reviews.db')
-        # SQL - concatenating user input directly
-        query = f"INSERT INTO reviews (pr_number, status) VALUES ({pr_number}, '{status}')"
-        conn.execute(query)
-        conn.commit()
-
     def run_review_pipeline(
         self,
         repo_name: str,
@@ -459,6 +450,7 @@ class ReviewOrchestrator:
         """Run classical static analysis tools."""
         findings = []
         changed_file_paths = [f.path for f in pr_context.changed_files]
+        aspect_name = aspect.get('name')
 
         # Determine which analyzer to use based on detected languages
         if 'python' in pr_context.detected_languages:
@@ -484,6 +476,10 @@ class ReviewOrchestrator:
             )
             if analyzer.is_available():
                 findings.extend(analyzer.run_analysis(changed_file_paths))
+
+        # Add aspect tracking to all classical findings
+        for finding in findings:
+            finding.aspect = aspect_name
 
         # Filter findings to only include lines changed in the PR (if enabled)
         if self.config.get('filtering', {}).get('only_changed_lines', True):
@@ -673,7 +669,20 @@ class ReviewOrchestrator:
 
     def _deduplicate_findings(self, findings: list[Finding]) -> list[Finding]:
         """
-        Deduplicate findings based on file, line, and message.
+        Deduplicate semantically similar findings at nearby locations.
+
+        Strategy:
+        - Can use AI-powered deduplication (configurable) or word-based similarity
+        - Groups findings by file and category
+        - Within each group, merges findings that are semantically similar AND nearby
+        - "Nearby" = within configurable threshold (default: 10 lines)
+        - Different files or distant lines = separate findings (not duplicates)
+        - Preserves highest severity and combines unique insights
+
+        Examples:
+        - SQL injection on lines 43, 44, 45 → merged into one finding
+        - Same SQL injection in different files → separate findings
+        - Same issue 50 lines apart in same file → separate findings
 
         Args:
             findings: List of findings
@@ -681,23 +690,73 @@ class ReviewOrchestrator:
         Returns:
             Deduplicated list of findings
         """
-        seen = set()
-        deduplicated = []
+        if not findings:
+            return []
+
+        # Get deduplication config
+        dedup_config = self.config.get('deduplication', {})
+        proximity_threshold = dedup_config.get('proximity_threshold', 10)
+
+        # Group by file and category first
+        file_category_groups: dict[tuple, list[Finding]] = {}
 
         for finding in findings:
-            # Create unique key
-            key = (
-                finding.file_path,
-                finding.line_number,
-                finding.message,
-                finding.category.value
-            )
+            group_key = (finding.file_path, finding.category.value)
 
-            if key not in seen:
-                seen.add(key)
-                deduplicated.append(finding)
+            if group_key not in file_category_groups:
+                file_category_groups[group_key] = []
+            file_category_groups[group_key].append(finding)
+
+        # Process each group with AI deduplication
+        deduplicated = []
+
+        for group_key, group_findings in file_category_groups.items():
+            if len(group_findings) > 1:
+                # Always use AI-powered deduplication
+                try:
+                    merged_findings = self._deduplicate_with_ai(
+                        group_findings,
+                        proximity_threshold
+                    )
+                    deduplicated.extend(merged_findings)
+                except Exception as e:
+                    # Fail-safe: keep original findings if AI deduplication fails
+                    print(f"⚠️ AI deduplication failed for {group_key} ({type(e).__name__}): {str(e)[:100]}")
+                    print(f"   Keeping {len(group_findings)} original findings (no deduplication)")
+                    deduplicated.extend(group_findings)
+            else:
+                # Single finding, no deduplication needed
+                deduplicated.extend(group_findings)
 
         return deduplicated
+
+    def _deduplicate_with_ai(
+        self,
+        findings: list[Finding],
+        proximity_threshold: int
+    ) -> list[Finding]:
+        """
+        Use AI to deduplicate findings (fast Haiku model).
+
+        Args:
+            findings: List of findings from same file + category
+            proximity_threshold: Max line distance for deduplication
+
+        Returns:
+            Deduplicated findings
+        """
+        from .ai_deduplication import AIDeduplicator
+
+        # Get deduplication model from config
+        dedup_config = self.config.get('deduplication', {})
+        model = dedup_config.get('model', 'claude-haiku-4-5')
+
+        deduplicator = AIDeduplicator(
+            model=model,
+            metrics=self.metrics
+        )
+
+        return deduplicator.deduplicate_group(findings, proximity_threshold)
 
     def _calculate_statistics(self, findings: list[Finding]) -> dict[str, int]:
         """Calculate statistics from findings."""

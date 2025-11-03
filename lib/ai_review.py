@@ -366,12 +366,17 @@ Please provide a corrected response with valid JSON in this exact format:
 
         return prompt
 
-    def parse_ai_findings(self, ai_response: dict[str, Any]) -> list[Finding]:
+    def parse_ai_findings(
+        self,
+        ai_response: dict[str, Any],
+        aspect_name: str | None = None
+    ) -> list[Finding]:
         """
         Parse AI response into Finding objects.
 
         Args:
             ai_response: Parsed JSON response from AI
+            aspect_name: Name of the review aspect (e.g., "security_review")
 
         Returns:
             List of Finding objects
@@ -388,7 +393,8 @@ Please provide a corrected response with valid JSON in this exact format:
                     message=item.get('message', ''),
                     suggestion=item.get('suggestion'),
                     tool='claude-ai',
-                    rule_id=item.get('rule_id', 'ai-review')
+                    rule_id=item.get('rule_id', 'ai-review'),
+                    aspect=aspect_name  # Track which aspect found this
                 )
                 findings.append(finding)
             except Exception as e:
@@ -452,7 +458,7 @@ Please provide a corrected response with valid JSON in this exact format:
             shared_context: Shared context from previous reviews
 
         Returns:
-            List of findings
+            List of findings with aspect tracking
         """
         try:
             # Build prompt
@@ -461,8 +467,9 @@ Please provide a corrected response with valid JSON in this exact format:
             # Execute review
             ai_response = self.run_claude_review(prompt)
 
-            # Parse findings
-            findings = self.parse_ai_findings(ai_response)
+            # Parse findings with aspect name
+            aspect_name = aspect.get('name')
+            findings = self.parse_ai_findings(ai_response, aspect_name)
 
             return findings
 

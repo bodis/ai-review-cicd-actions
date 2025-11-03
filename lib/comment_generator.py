@@ -81,10 +81,16 @@ Comment style guide:
             'testing': '🧪'
         }
 
+        # Build aspect information if available
+        aspect_info = ""
+        if finding.aspect:
+            aspect_display = finding.aspect.replace('_', ' ').title()
+            aspect_info = f"\n**Review Aspect**: {aspect_display}"
+
         prompt = f"""Generate a concise GitHub PR inline comment for this code issue:
 
 **Severity**: {finding.severity.value.upper()} {severity_emoji.get(finding.severity, '')}
-**Category**: {finding.category.value} {category_emoji.get(finding.category.value, '')}
+**Category**: {finding.category.value} {category_emoji.get(finding.category.value, '')}{aspect_info}
 **Issue**: {finding.message}
 
 Code context:
@@ -97,6 +103,7 @@ Generate a comment that:
 2. Shows why it matters (security risk? performance impact? maintainability?)
 3. Provides a specific fix with code example
 4. Stays under 500 characters
+5. Include aspect information at the bottom
 
 Format:
 {category_emoji.get(finding.category.value, '•')} **[Issue description]**
@@ -107,6 +114,8 @@ Why this matters: [brief explanation]
 ```[language]
 [code example]
 ```
+
+*Detected by: {aspect_display if finding.aspect else 'AI Review'}*
 
 Output only the comment, no preamble."""
 
@@ -166,9 +175,10 @@ Output only the comment, no preamble."""
         prompt = "Generate concise GitHub PR comments for these code issues:\n\n"
 
         for i, finding in enumerate(findings, 1):
+            aspect_text = f" ({finding.aspect.replace('_', ' ').title()})" if finding.aspect else ""
             prompt += f"""**Finding {i}**:
 - Severity: {finding.severity.value}
-- Category: {finding.category.value}
+- Category: {finding.category.value}{aspect_text}
 - Issue: {finding.message}
 - Location: {finding.file_path}:{finding.line_number}
 - Code: {finding.code_snippet[:100] if finding.code_snippet else 'N/A'}
@@ -263,6 +273,20 @@ etc."""
         for i, finding in enumerate(top_findings, 1):
             top_issues_text += f"{i}. **{finding.severity.value.upper()}** - {finding.message[:100]}\n"
 
+        # Build improvement suggestions for approved PRs
+        improvements_section = ""
+        if not results.should_block and stats['total'] > 0:
+            # Get lower severity findings for improvement suggestions
+            low_severity_findings = [
+                f for f in results.all_findings
+                if f.severity in [Severity.MEDIUM, Severity.LOW, Severity.INFO]
+            ]
+            if low_severity_findings:
+                improvements_text = "\n**Lower Priority Improvements**:\n"
+                for f in low_severity_findings[:5]:  # Top 5 improvement suggestions
+                    improvements_text += f"- {f.message[:80]}...\n"
+                improvements_section = f"\n{improvements_text}"
+
         prompt = f"""Generate an engaging GitHub Pull Request summary comment for code review results.
 
 **Review Status**: {'❌ BLOCKED' if results.should_block else '✅ APPROVED'}
@@ -281,7 +305,7 @@ etc."""
 {top_issues_text}
 
 **Review Aspects Executed**:
-{', '.join([r.aspect_name for r in results.review_results])}
+{', '.join([r.aspect_name for r in results.review_results])}{improvements_section}
 
 Create a professional, encouraging summary comment with:
 
@@ -291,9 +315,10 @@ Create a professional, encouraging summary comment with:
 4. **Top 3-5 issues** highlighted with severity
 5. **Category breakdown** (security, architecture, quality, etc.)
 6. **Actionable next steps** for the developer
-7. **Encouraging tone** (celebrate good practices, guide on improvements)
-8. **Emoji usage** for visual clarity
-9. **Maximum 2000 characters**
+7. {"**Optional Improvements section** (if approved but has lower-severity findings)" if not results.should_block and stats['total'] > 0 else ""}
+8. **Encouraging tone** (celebrate good practices, guide on improvements)
+9. **Emoji usage** for visual clarity
+10. **Maximum 2000 characters**
 
 Use proper markdown formatting: tables, bold, lists, code blocks where appropriate.
 
