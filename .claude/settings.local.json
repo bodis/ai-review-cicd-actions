@@ -15,7 +15,13 @@
       "Bash(python3:*)",
       "Bash(uv run python:*)",
       "Bash(unset GITHUB_TOKEN)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(test:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(/tmp/orchestrator.patch)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
