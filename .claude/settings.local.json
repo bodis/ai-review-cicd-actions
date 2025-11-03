@@ -21,7 +21,10 @@
       "Bash(git stash:*)",
       "Bash(/tmp/orchestrator.patch)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git apply:*)",
+      "Bash(git push:*)",
+      "Bash(git rebase:*)"
     ],
     "deny": [],
     "ask": []
