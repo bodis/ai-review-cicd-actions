@@ -3,7 +3,7 @@ name = "ai-review-cicd-actions"
 version = "1.0.0"
 description = "Multi-layered code review pipeline demonstrating defense patterns for AI-assisted development"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Tamás Bódis", email = "tamas.bodis@gmail.com" }
 ]
 readme = "README.md"
 license = { text = "MIT" }
@@ -25,7 +25,7 @@ dependencies = [
     "pygithub>=2.1.0",
     "python-dotenv>=1.0.0",
     "click>=8.1.0",
-    "anthropic>=0.39.0",  # For direct API comment generation
+    "anthropic>=0.39.0"
 ]
 
 [project.optional-dependencies]

@@ -55,3 +55,6 @@ htmlcov/
 
 # GitHub Actions
 .github/workflows/.test
+
+# Pull Request review elements
+pr-*.json

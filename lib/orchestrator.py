@@ -34,6 +34,7 @@ class ReviewOrchestrator:
         self.project_root = project_root
         self.review_results: list[ReviewResult] = []
         self.metrics = Metrics()  # Initialize metrics tracking
+        self._ai_deduplicator = None  # Lazy-loaded AIDeduplicator (reused across calls)
 
     def run_review_pipeline(
         self,
@@ -738,6 +739,9 @@ class ReviewOrchestrator:
         """
         Use AI to deduplicate findings (fast Haiku model).
 
+        Uses a singleton AIDeduplicator instance to avoid recreating
+        the Anthropic client on every call (performance optimization).
+
         Args:
             findings: List of findings from same file + category
             proximity_threshold: Max line distance for deduplication
@@ -745,18 +749,19 @@ class ReviewOrchestrator:
         Returns:
             Deduplicated findings
         """
-        from .ai_deduplication import AIDeduplicator
+        # Lazy-load AIDeduplicator (create once, reuse)
+        if self._ai_deduplicator is None:
+            from .ai_deduplication import AIDeduplicator
 
-        # Get deduplication model from config
-        dedup_config = self.config.get('deduplication', {})
-        model = dedup_config.get('model', 'claude-haiku-4-5')
+            dedup_config = self.config.get('deduplication', {})
+            model = dedup_config.get('model', 'claude-haiku-4-5')
 
-        deduplicator = AIDeduplicator(
-            model=model,
-            metrics=self.metrics
-        )
+            self._ai_deduplicator = AIDeduplicator(
+                model=model,
+                metrics=self.metrics
+            )
 
-        return deduplicator.deduplicate_group(findings, proximity_threshold)
+        return self._ai_deduplicator.deduplicate_group(findings, proximity_threshold)
 
     def _calculate_statistics(self, findings: list[Finding]) -> dict[str, int]:
         """Calculate statistics from findings."""

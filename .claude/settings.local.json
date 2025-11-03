@@ -13,7 +13,9 @@
       "Bash(uv run ruff:*)",
       "Bash(cat:*)",
       "Bash(python3:*)",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(unset GITHUB_TOKEN)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
