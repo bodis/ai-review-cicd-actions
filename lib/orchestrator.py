@@ -698,31 +698,38 @@ class ReviewOrchestrator:
         dedup_config = self.config.get('deduplication', {})
         proximity_threshold = dedup_config.get('proximity_threshold', 10)
 
-        # Group by file and category first
-        file_category_groups: dict[tuple, list[Finding]] = {}
+        # Group by file only (not category) to catch cross-category duplicates
+        # Example: SQL injection reported as both "security" AND "architecture" should merge
+        file_groups: dict[str, list[Finding]] = {}
 
         for finding in findings:
-            group_key = (finding.file_path, finding.category.value)
+            group_key = finding.file_path
 
-            if group_key not in file_category_groups:
-                file_category_groups[group_key] = []
-            file_category_groups[group_key].append(finding)
+            if group_key not in file_groups:
+                file_groups[group_key] = []
+            file_groups[group_key].append(finding)
 
         # Process each group with AI deduplication
         deduplicated = []
 
-        for group_key, group_findings in file_category_groups.items():
+        for group_key, group_findings in file_groups.items():
             if len(group_findings) > 1:
                 # Always use AI-powered deduplication
+                print(f"\n🔍 Deduplicating {len(group_findings)} findings in {group_key}")
                 try:
                     merged_findings = self._deduplicate_with_ai(
                         group_findings,
                         proximity_threshold
                     )
+                    reduction = len(group_findings) - len(merged_findings)
+                    if reduction > 0:
+                        print(f"   ✅ Merged {len(group_findings)} → {len(merged_findings)} (removed {reduction} duplicates)")
+                    else:
+                        print(f"   ℹ️  No duplicates detected, kept all {len(merged_findings)} findings")
                     deduplicated.extend(merged_findings)
                 except Exception as e:
                     # Fail-safe: keep original findings if AI deduplication fails
-                    print(f"⚠️ AI deduplication failed for {group_key} ({type(e).__name__}): {str(e)[:100]}")
+                    print(f"   ⚠️ AI deduplication failed ({type(e).__name__}): {str(e)[:100]}")
                     print(f"   Keeping {len(group_findings)} original findings (no deduplication)")
                     deduplicated.extend(group_findings)
             else:
