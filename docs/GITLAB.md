@@ -131,7 +131,15 @@ ai-review:
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
     # CI_JOB_TOKEN is automatically provided by GitLab
 
-**3. Optional: Project Configuration** (`.gitlab/ai-review-config.yml`):
+**3. Project Configuration** (`.gitlab/ai-review-config.yml`) - **Optional but Recommended**:
+
+If you don't provide this file, the system uses **sensible defaults**:
+- ✅ Runs: Python (Ruff, Pylint, Bandit, mypy), JS/TS (ESLint, Prettier), AI reviews (Security, Architecture, Quality)
+- ✅ Blocks on: Critical issues only (0 allowed)
+- ✅ Filters: Only reports issues on changed lines
+- ✅ Uses: Claude Sonnet 4.5
+
+**Create this file to customize behavior**:
 
 ```yaml
 project_context:
@@ -145,7 +153,14 @@ blocking_rules:
     high: 5
 ```
 
-**4. Create a Merge Request** - Reviews run automatically!
+**4. Create a Merge Request** - Reviews run automatically with these defaults:
+   - ✅ Python: Ruff, Pylint, Bandit, mypy
+   - ✅ JavaScript/TypeScript: ESLint, Prettier, TSC
+   - ✅ AI: Security, Architecture, Code Quality reviews
+   - ✅ Blocks on: Critical issues only (0 tolerance)
+   - ✅ Filters: Only changed lines reported
+
+   (Customize by adding `.gitlab/ai-review-config.yml` - see Step 5)
 
 ---
 
@@ -377,9 +392,22 @@ GitLab automatically provides `CI_JOB_TOKEN` - you don't need to add it manually
 
 ---
 
-### Step 5: Configure Review Behavior (Optional)
+### Step 5: Configure Review Behavior (Optional but Recommended)
 
-Create `.gitlab/ai-review-config.yml` in your project root:
+**Without this file**, the system uses built-in defaults:
+- All Python tools (Ruff, Pylint, Bandit, mypy)
+- All JavaScript tools (ESLint, Prettier, TSC)
+- AI reviews: Security, Architecture, Code Quality
+- Blocks only on critical issues (0 allowed)
+- Reports only on changed lines
+
+**Why create a config file?**
+- 💰 **Save costs** - Disable AI reviews you don't need ($0.01-0.02 per review)
+- 🎯 **Add context** - Project name, architecture, constraints help AI reviews
+- ⚖️ **Tune blocking** - Stricter (block on high) or looser (allow more issues)
+- 🚀 **Skip irrelevant tools** - Disable JS analysis for Python-only projects
+
+**Create `.gitlab/ai-review-config.yml`** in your project root:
 
 ```yaml
 # Project metadata
