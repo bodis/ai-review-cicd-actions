@@ -82,6 +82,9 @@ jobs:
           cd .ai-review
           uv sync
 
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Install Python analysis tools
         if: inputs.enable-python-analysis
         run: |
@@ -93,6 +96,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'project/package-lock.json'
 
       - name: Install project dependencies
         if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
@@ -120,6 +125,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           COMPANY_CONFIG_TOKEN: ${{ secrets.COMPANY_CONFIG_TOKEN }}
+          CLAUDE_CODE_HEADLESS: '1'
+          NO_COLOR: '1'
         run: |
           cd .ai-review
           uv run python main.py \
