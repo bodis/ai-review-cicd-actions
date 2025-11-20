@@ -5,6 +5,10 @@ A demonstration of multi-layered, generalized code review pipeline architecture 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)](https://github.com/features/actions)
+[![GitLab CI](https://img.shields.io/badge/CI-GitLab%20CI-FC6D26?logo=gitlab)](https://docs.gitlab.com/ee/ci/)
+
+> **💡 Platform Support:** This project supports both **GitHub** and **GitLab** through a clean platform abstraction layer.
+> This README focuses on GitHub integration. For GitLab-specific setup and differences, see **[GitLab Integration Guide](docs/GITLAB.md)**.
 
 ---
 
@@ -668,11 +672,15 @@ ai-review-cicd-actions/
 
 The documentation is organized into four specialized guides based on integration needs:
 
+### Platform Integration Guides
+
+- 🔧 **[GitLab Integration](docs/GITLAB.md)** - Complete GitLab CI setup, MR integration, and platform differences
+- 🏗️ **[Architecture](docs/ARCHITECTURE.md)** - Platform abstraction, dual GitHub/GitLab support
+
 ### Language-Specific Integration Guides
 
 Each guide covers tool setup, configuration, troubleshooting, and working examples:
 
-- 🏗️ **[Architecture](docs/ARCHITECTURE.md)** - Platform abstraction, dual GitHub/GitLab support
 - 🐍 **[Python Integration](docs/PYTHON_INTEGRATION.md)** - Ruff, Pylint, Bandit, mypy setup
 - 🟨 **[JavaScript/TypeScript Integration](docs/JAVASCRIPT_INTEGRATION.md)** - ESLint, Prettier, TSC configuration
 - ☕ **[Java Integration](docs/JAVA_INTEGRATION.md)** - SpotBugs, PMD, Checkstyle, JaCoCo, OWASP integration
@@ -854,6 +862,6 @@ This project was researched and developed with AI assistance (Claude Code), impl
 
 **A research demonstration of multi-layer defense patterns for AI-assisted development**
 
-[Python Guide](docs/PYTHON_INTEGRATION.md) • [JavaScript Guide](docs/JAVASCRIPT_INTEGRATION.md) • [Java Guide](docs/JAVA_INTEGRATION.md) • [AI Config](docs/AI_CONFIGURATION.md)
+[GitLab Guide](docs/GITLAB.md) • [Python Guide](docs/PYTHON_INTEGRATION.md) • [JavaScript Guide](docs/JAVASCRIPT_INTEGRATION.md) • [Java Guide](docs/JAVA_INTEGRATION.md) • [AI Config](docs/AI_CONFIGURATION.md)
 
 </div>
