@@ -8,7 +8,12 @@ A demonstration of multi-layered, generalized code review pipeline architecture 
 [![GitLab CI](https://img.shields.io/badge/CI-GitLab%20CI-FC6D26?logo=gitlab)](https://docs.gitlab.com/ee/ci/)
 
 > **💡 Platform Support:** This project supports both **GitHub** and **GitLab** through a clean platform abstraction layer.
-> This README focuses on GitHub integration. For GitLab-specific setup and differences, see **[GitLab Integration Guide](docs/GITLAB.md)**.
+>
+> **Choose your platform:**
+> - 🔵 **[GitHub Integration Guide](docs/GITHUB.md)** - Complete setup for GitHub Actions and Pull Requests
+> - 🟠 **[GitLab Integration Guide](docs/GITLAB.md)** - Complete setup for GitLab CI and Merge Requests
+>
+> This README provides a platform-agnostic overview of features and architecture.
 
 ---
 
@@ -122,13 +127,21 @@ Powered by Claude, specialized prompts for:
 - **Custom rules**: Pattern-based detection for project-specific requirements
 - **Remote config loading**: GitHub URLs, HTTP endpoints, S3 buckets
 
-### 🚀 GitHub Integration
+### 🚀 CI/CD Platform Integration
 
-- ✅ **Automated PR comments** with summary and statistics
-- ✅ **Inline comments** on specific lines for critical/high issues
-- ✅ **Status checks** (pass/fail) that can block merging
-- ✅ **Review events** (approve/request changes/comment)
-- ✅ **Configurable blocking rules** based on severity thresholds
+**GitHub Actions:**
+- ✅ Automated PR comments with summary and statistics
+- ✅ Inline comments on specific lines for critical/high issues
+- ✅ Status checks (pass/fail) that can block merging
+- ✅ Review events (approve/request changes/comment)
+- ✅ **[Complete GitHub Guide →](docs/GITHUB.md)**
+
+**GitLab CI:**
+- ✅ Automated MR notes with summary and statistics
+- ✅ Inline discussions on specific lines for critical/high issues
+- ✅ Pipeline status updates (success/failed)
+- ✅ Configurable blocking rules based on severity thresholds
+- ✅ **[Complete GitLab Guide →](docs/GITLAB.md)**
 
 ### 📊 Comprehensive Reporting
 
@@ -164,120 +177,70 @@ Powered by Claude, specialized prompts for:
 
 ## Quick Start
 
-**Two integration patterns available** - choose based on your needs:
+### Choose Your Platform
 
-### 📋 Pattern 1: Local (Copy review system to your project)
+This system integrates with both GitHub and GitLab. Follow the appropriate guide:
 
-**Best for**: Single projects, full control, small teams
+#### 🔵 GitHub Actions
+**5-minute setup** for GitHub Pull Requests:
+1. Add `ANTHROPIC_API_KEY` to repository secrets
+2. Create `.github/workflows/ai-code-review.yml` workflow file
+3. Optional: Add `.github/ai-review-config.yml` for customization
+4. Create a PR - reviews run automatically!
 
-```bash
-# See examples/local-pattern/ for complete examples
-cp examples/local-pattern/python-workflow.yml .github/workflows/ai-review.yml
-cp examples/local-pattern/python-config.yml .github/ai-review-config.yml
-```
-
-✅ Full control
-✅ Can customize anything
-❌ Manual updates needed
-
-### 🔗 Pattern 2: Reusable (Reference centralized system)
-
-**Best for**: Organizations with 10+ repos, consistent standards
-
-```bash
-# See examples/reusable-pattern/ for complete examples
-cp examples/reusable-pattern/python-workflow.yml .github/workflows/ai-review.yml
-# Edit to point to YOUR centralized review system repo
-```
-
-✅ Zero code duplication
-✅ Single source of truth
-❌ Less flexibility per project
-
-**📚 Complete setup guides**: See **[`examples/README.md`](examples/README.md)** for detailed instructions, language-specific examples, and pattern comparisons.
+**👉 [Complete GitHub Setup Guide](docs/GITHUB.md)** - Integration patterns, workflow examples, troubleshooting
 
 ---
 
-### 🏢 Example: Reusable Workflow (Organizations)
+#### 🟠 GitLab CI
+**5-minute setup** for GitLab Merge Requests:
+1. Add `ANTHROPIC_API_KEY` to CI/CD variables
+2. Create `.gitlab-ci.yml` pipeline file
+3. Optional: Add `.gitlab/ai-review-config.yml` for customization
+4. Create an MR - reviews run automatically!
 
-For organizations managing multiple repositories:
+**👉 [Complete GitLab Setup Guide](docs/GITLAB.md)** - Integration patterns, pipeline examples, troubleshooting
 
-**Prerequisites**: Only one secret needed!
-- ✅ `ANTHROPIC_API_KEY` - Get from [Anthropic Console](https://console.anthropic.com/)
-- ❌ `GITHUB_TOKEN` - Automatically provided by GitHub Actions (don't add to secrets!)
+---
 
-**1. Ensure pyproject.toml** (your project):
+### What Runs by Default
 
-```toml
-[project]
-name = "payment-api"
-requires-python = ">=3.11"
-dependencies = ["fastapi>=0.104.0", "pydantic>=2.0"]
+When you don't provide a project config file, the system uses **sensible defaults**:
 
-[tool.uv]
-dev-dependencies = [
-    "ruff>=0.1.6",
-    "pytest>=7.4.0",
-]
-```
+**Static Analysis:**
+- ✅ Python: Ruff, Pylint, Bandit, mypy
+- ✅ JavaScript/TypeScript: ESLint, Prettier, TSC
+- ✅ Java: SpotBugs, PMD, Checkstyle
 
-**2. Add Workflow File** (`.github/workflows/code-review.yml`):
+**AI Reviews:**
+- ✅ Security Review (OWASP, vulnerabilities)
+- ✅ Architecture Review (SOLID, patterns)
+- ✅ Code Quality Review (complexity, duplication)
 
-```yaml
-name: AI Code Review
+**Blocking:**
+- ✅ Blocks on: Critical issues only (0 tolerance)
+- ✅ Filters: Only reports issues on changed lines
+- ✅ Uses: Claude Sonnet 4.5 (latest)
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+**Customize** by adding a config file to tune costs, blocking rules, or review aspects.
 
-permissions:
-  contents: read
-  pull-requests: write
-  statuses: write
+---
 
-jobs:
-  code-review:
-    uses: your-org/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
-    with:
-      enable-python-analysis: true
-      python-version: '3.11'
-      company-config-url: 'github://your-org/policies/main/code-review.yml'
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+### Integration Patterns
 
-**3. Optional Project Configuration** (`.github/ai-review-config.yml`):
+Both platforms support two integration patterns:
 
-```yaml
-project_context:
-  name: "Payment API"
-  architecture: "FastAPI Microservice"
+**📋 Pattern 1: Local/Embedded**
+- Copy review system to your project
+- Full control and customization
+- Best for: Single projects, small teams
 
-project_constraints:
-  - "All payment operations must be idempotent"
-  - "Use Decimal for monetary values"
+**🔗 Pattern 2: Centralized/Reusable**
+- Reference centralized review system
+- Zero code duplication, easy updates
+- Best for: Organizations, 5+ projects
 
-blocking_rules:
-  block_on_critical: true
-  max_findings:
-    critical: 0
-    high: 3
-```
-
-**4. Create a PR** - Reviews run automatically!
-
-**What happens**:
-- GitHub Actions installs UV (2-3 seconds, cached)
-- UV installs Python + dependencies (5-10 seconds, cached)
-- Classical analysis runs (Ruff, Pylint, Bandit, mypy)
-- AI reviews analyze semantics (security, architecture, quality)
-- Results posted as PR comments with blocking if configured
-
-### Other Languages
-
-- **JavaScript/TypeScript**: See [JS/TS Guide](docs/JAVASCRIPT_INTEGRATION.md)
-- **Java/Spring Boot**: See [Java Guide](docs/JAVA_INTEGRATION.md) and [example workflow](examples/java-workflow-example.yml)
-- **Multi-language projects**: Enable multiple analyzers in the same workflow
+See platform-specific guides for detailed instructions and examples.
 
 ---
 
@@ -287,12 +250,12 @@ blocking_rules:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              GitHub Pull Request                │
+│        Pull/Merge Request (GitHub/GitLab)       │
 └────────────────────┬────────────────────────────┘
                      │
          ┌───────────▼───────────┐
-         │  GitHub Actions       │
-         │  Workflow Trigger     │
+         │  CI/CD Pipeline       │
+         │  (Actions/GitLab CI)  │
          └───────────┬───────────┘
                      │
     ┌────────────────┼────────────────┐
@@ -341,25 +304,24 @@ blocking_rules:
                             └───────────────────────────┘
 ```
 
-### Validation Flow for Projects
+### Review Pipeline Flow
 
-Here's how a project can integrate this validation into their workflow:
+Here's how the review pipeline works (platform-agnostic):
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                   Developer Workflow                         │
 └──────────────────────────────────────────────────────────────┘
 
- 1. Developer Creates PR
+ 1. Developer Creates PR/MR
       ↓
- 2. GitHub Actions Triggered
+ 2. CI/CD Pipeline Triggered
       ↓
 ┌─────────────────────────────────────────────────────────┐
 │  Environment Validation                                 │
-│  ✓ Check GITHUB_TOKEN exists                            │
+│  ✓ Check platform token exists (GITHUB_TOKEN/CI_JOB_TOKEN) │
 │  ✓ Check ANTHROPIC_API_KEY exists and valid format      │
-│  ✓ Install Claude Code CLI                              │
-│  ✓ Test CLI authentication                              │
+│  ✓ Install dependencies (UV, Node.js if needed)         │
 └────────────────┬────────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────────────────────┐
@@ -408,10 +370,10 @@ Here's how a project can integrate this validation into their workflow:
 └────────────────┬────────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────────────────────┐
-│  GitHub Integration                                     │
-│  • Post summary comment to PR                           │
-│  • Post inline comments on code                         │
-│  • Update status check (✅ or ❌)                        │
+│  Platform Integration                                   │
+│  • Post summary comment to PR/MR                        │
+│  • Post inline comments/discussions on code             │
+│  • Update commit/pipeline status (✅ or ❌)              │
 │  • Exit with code (0 = pass, 1 = block)                 │
 └─────────────────────────────────────────────────────────┘
                  ↓
@@ -419,7 +381,7 @@ Here's how a project can integrate this validation into their workflow:
   │                             │
   ▼                             ▼
 APPROVED                     BLOCKED
-✅ PR can merge           ❌ Changes required
+✅ PR/MR can merge        ❌ Changes required
 Developer continues       Developer fixes issues
 ```
 
@@ -427,12 +389,12 @@ Developer continues       Developer fixes issues
 - **Environment Validation First**: Fails fast if credentials missing
 - **Static Analysis in Parallel**: Quick feedback on obvious issues
 - **AI Analysis Sequential**: Each review builds on previous context
-- **Hybrid Comment Generation**: Fast API for comments, deep CLI for analysis
+- **Hybrid Comment Generation**: Fast API for comments, deep analysis for semantic issues
 - **Clear Blocking Rules**: Transparent decision making
-- **Rich Feedback**: Summary + inline comments + status checks
+- **Rich Feedback**: Summary + inline comments/discussions + status checks
 
-**Total Time**: ~1-2 minutes per PR (depends on project size)
-**Total Cost**: ~$0.03-0.05 per PR (depends on project and PR size)
+**Total Time**: ~1-2 minutes per PR/MR (depends on project size)
+**Total Cost**: ~$0.03-0.05 per PR/MR (depends on project and change size)
 
 ### Core Components
 
@@ -445,13 +407,13 @@ Developer continues       Developer fixes issues
 | **AI Review Engine** | Claude-powered reviews | Prompt management, JSON validation, retry logic |
 | **Injection System** | Policy enforcement | Company/project policy injection into AI prompts |
 | **Result Aggregator** | Combines findings | Deduplication, categorization, statistics |
-| **GitHub Reporter** | Posts results to GitHub | Summary comments, inline comments, status checks |
+| **Platform Reporter** | Posts results to platform | Summary comments, inline comments, status checks |
 
 ### Execution Flow
 
-1. **PR Event** → GitHub Actions triggered
+1. **PR/MR Event** → CI/CD pipeline triggered
 2. **Context Extraction** → Files, diff, languages detected
-3. **Change Detection** → Analyzes PR for:
+3. **Change Detection** → Analyzes changes for:
    - Dependency changes (pyproject.toml, uv.lock, package.json, etc.)
    - Test changes (new/modified test files)
    - Security risk patterns (eval, exec, weak crypto, hardcoded secrets)
@@ -463,7 +425,7 @@ Developer continues       Developer fixes issues
    - **Sequential**: AI reviews receive change detection context in prompts
 6. **Aggregation** → Deduplicate, categorize, calculate statistics
 7. **Blocking Check** → Apply severity thresholds
-8. **GitHub Reporting** → Comment includes change types and risk level
+8. **Platform Reporting** → Comment includes change types and risk level
 
 ### How Change Detection Works
 
@@ -489,13 +451,13 @@ Risk Level = High (>70) | Medium (40-70) | Low (<40)
 **Usage in Reviews**:
 1. **Console Output**: Displays detected change types during execution
 2. **AI Context Injection**: Change types are injected into AI review prompts
-   - Example: "This PR includes DEPENDENCY_CHANGE and SECURITY_RISK"
+   - Example: "This change includes DEPENDENCY_CHANGE and SECURITY_RISK"
    - AI reviews become more focused on relevant concerns
-3. **PR Comments**: Risk level and change types appear in summary comments
+3. **Comments**: Risk level and change types appear in summary comments
 4. **Blocking Rules**: Can configure stricter rules for high-risk changes
 
 **Example**:
-If a PR modifies `pyproject.toml` (UV/Poetry dependencies) and includes `eval()` calls:
+If a change modifies `pyproject.toml` (UV/Poetry dependencies) and includes `eval()` calls:
 - Detected types: `DEPENDENCY_CHANGE`, `SECURITY_RISK`
 - Impact score: Elevated due to multiple risk factors
 - AI prompts: Enhanced with "Pay special attention to new dependencies and security patterns"
@@ -674,7 +636,8 @@ The documentation is organized into four specialized guides based on integration
 
 ### Platform Integration Guides
 
-- 🔧 **[GitLab Integration](docs/GITLAB.md)** - Complete GitLab CI setup, MR integration, and platform differences
+- 🔵 **[GitHub Integration](docs/GITHUB.md)** - Complete GitHub Actions setup, PR integration, and workflow examples
+- 🟠 **[GitLab Integration](docs/GITLAB.md)** - Complete GitLab CI setup, MR integration, and pipeline examples
 - 🏗️ **[Architecture](docs/ARCHITECTURE.md)** - Platform abstraction, dual GitHub/GitLab support
 
 ### Language-Specific Integration Guides
@@ -862,6 +825,6 @@ This project was researched and developed with AI assistance (Claude Code), impl
 
 **A research demonstration of multi-layer defense patterns for AI-assisted development**
 
-[GitLab Guide](docs/GITLAB.md) • [Python Guide](docs/PYTHON_INTEGRATION.md) • [JavaScript Guide](docs/JAVASCRIPT_INTEGRATION.md) • [Java Guide](docs/JAVA_INTEGRATION.md) • [AI Config](docs/AI_CONFIGURATION.md)
+[GitHub Guide](docs/GITHUB.md) • [GitLab Guide](docs/GITLAB.md) • [Python Guide](docs/PYTHON_INTEGRATION.md) • [JavaScript Guide](docs/JAVASCRIPT_INTEGRATION.md) • [Java Guide](docs/JAVA_INTEGRATION.md) • [AI Config](docs/AI_CONFIGURATION.md)
 
 </div>
