@@ -59,7 +59,7 @@ jobs:
       - name: Checkout review system
         uses: actions/checkout@v4
         with:
-          repository: 'your-org/ai-review-cicd-actions'  # Update with actual repo
+          repository: 'bodis/ai-review-cicd-actions'
           ref: 'main'
           path: '.ai-review'
 
