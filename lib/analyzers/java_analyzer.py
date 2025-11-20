@@ -333,7 +333,7 @@ class JavaAnalyzer(BaseAnalyzer):
         """Parse SpotBugs XML report."""
         findings = []
         try:
-            tree = ET.parse(xml_file)
+            tree = ET.parse(xml_file)  # nosec B314 - parsing trusted SpotBugs tool output
             root = tree.getroot()
 
             for bug in root.findall(".//BugInstance"):
@@ -369,7 +369,7 @@ class JavaAnalyzer(BaseAnalyzer):
         """Parse PMD XML report."""
         findings = []
         try:
-            tree = ET.parse(xml_file)
+            tree = ET.parse(xml_file)  # nosec B314 - parsing trusted PMD tool output
             root = tree.getroot()
 
             for file_elem in root.findall(".//file"):
@@ -402,7 +402,7 @@ class JavaAnalyzer(BaseAnalyzer):
         """Parse Checkstyle XML report."""
         findings = []
         try:
-            tree = ET.parse(xml_file)
+            tree = ET.parse(xml_file)  # nosec B314 - parsing trusted Checkstyle tool output
             root = tree.getroot()
 
             for file_elem in root.findall(".//file"):
@@ -433,7 +433,7 @@ class JavaAnalyzer(BaseAnalyzer):
         """Parse JaCoCo coverage XML report."""
         findings = []
         try:
-            tree = ET.parse(xml_file)
+            tree = ET.parse(xml_file)  # nosec B314 - parsing trusted JaCoCo tool output
             root = tree.getroot()
 
             # Look for packages/classes with low coverage

@@ -46,6 +46,7 @@ dev = [
     # Type stubs
     "types-pyyaml",
     "types-requests",
+    "types-jsonschema",
 ]
 
 [project.scripts]
@@ -91,6 +92,7 @@ dev = [
     "pre-commit>=4.4.0",
     "types-pyyaml",
     "types-requests",
+    "types-jsonschema",
 ]
 
 # Ruff configuration
@@ -158,6 +160,10 @@ strict_optional = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = ["github", "github.*", "gitlab", "gitlab.*", "anthropic", "anthropic.*"]
+ignore_missing_imports = true
+
 # Pylint configuration
 [tool.pylint.main]
 max-line-length = 100
@@ -179,7 +185,13 @@ disable = [
 # Bandit configuration
 [tool.bandit]
 exclude_dirs = ["/tests"]
-skips = ["B101"]  # Skip assert warnings in tests
+skips = [
+    "B101",  # Skip assert warnings in tests
+    "B603",  # subprocess without shell - expected for running analysis tools
+    "B607",  # partial executable path - expected for system tools
+    "B404",  # subprocess import - necessary for code analysis tool
+    "B405",  # xml.etree import - used to parse trusted tool outputs
+]
 
 # Coverage configuration
 [tool.coverage.run]
