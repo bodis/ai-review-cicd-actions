@@ -85,7 +85,8 @@ jobs:
       - name: Install Python analysis tools
         if: inputs.enable-python-analysis
         run: |
-          uv pip install --system ruff pylint bandit mypy
+          cd .ai-review
+          uv pip install ruff pylint bandit mypy
 
       - name: Set up Node.js
         if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
