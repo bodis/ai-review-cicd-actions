@@ -38,7 +38,9 @@ Comment style guide:
 - Always include "why this matters" and "how to fix"
 - Use code blocks with syntax highlighting"""
 
-    def __init__(self, api_key: str | None = None, metrics: Metrics | None = None, model: str | None = None):
+    def __init__(
+        self, api_key: str | None = None, metrics: Metrics | None = None, model: str | None = None
+    ):
         """
         Initialize comment generator.
 
@@ -47,7 +49,7 @@ Comment style guide:
             metrics: Metrics object for tracking token usage
             model: Claude model to use (default: claude-sonnet-4-5-20250929)
         """
-        self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY is required")
 
@@ -66,36 +68,36 @@ Comment style guide:
             Formatted comment text
         """
         severity_emoji = {
-            Severity.CRITICAL: '🔴',
-            Severity.HIGH: '🟠',
-            Severity.MEDIUM: '🟡',
-            Severity.LOW: '🔵',
-            Severity.INFO: '⚪'
+            Severity.CRITICAL: "🔴",
+            Severity.HIGH: "🟠",
+            Severity.MEDIUM: "🟡",
+            Severity.LOW: "🔵",
+            Severity.INFO: "⚪",
         }
 
         category_emoji = {
-            'security': '🔒',
-            'performance': '⚡',
-            'architecture': '🏗️',
-            'code_quality': '✨',
-            'testing': '🧪'
+            "security": "🔒",
+            "performance": "⚡",
+            "architecture": "🏗️",
+            "code_quality": "✨",
+            "testing": "🧪",
         }
 
         # Build aspect information if available
         aspect_info = ""
         if finding.aspect:
-            aspect_display = finding.aspect.replace('_', ' ').title()
+            aspect_display = finding.aspect.replace("_", " ").title()
             aspect_info = f"\n**Review Aspect**: {aspect_display}"
 
         prompt = f"""Generate a concise GitHub PR inline comment for this code issue:
 
-**Severity**: {finding.severity.value.upper()} {severity_emoji.get(finding.severity, '')}
-**Category**: {finding.category.value} {category_emoji.get(finding.category.value, '')}{aspect_info}
+**Severity**: {finding.severity.value.upper()} {severity_emoji.get(finding.severity, "")}
+**Category**: {finding.category.value} {category_emoji.get(finding.category.value, "")}{aspect_info}
 **Issue**: {finding.message}
 
 Code context:
 ```python
-{finding.code_snippet if finding.code_snippet else '(code snippet not available)'}
+{finding.code_snippet if finding.code_snippet else "(code snippet not available)"}
 ```
 
 Generate a comment that:
@@ -106,7 +108,7 @@ Generate a comment that:
 5. Include aspect information at the bottom
 
 Format:
-{category_emoji.get(finding.category.value, '•')} **[Issue description]**
+{category_emoji.get(finding.category.value, "•")} **[Issue description]**
 
 Why this matters: [brief explanation]
 
@@ -115,7 +117,7 @@ Why this matters: [brief explanation]
 [code example]
 ```
 
-*Detected by: {aspect_display if finding.aspect else 'AI Review'}*
+*Detected by: {aspect_display if finding.aspect else "AI Review"}*
 
 Output only the comment, no preamble."""
 
@@ -123,17 +125,19 @@ Output only the comment, no preamble."""
             model=self.model,
             max_tokens=400,
             temperature=0.3,  # Lower temperature for consistent formatting
-            system=[{
-                "type": "text",
-                "text": self.SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"}  # Cache system prompt
-            }],
-            messages=[{"role": "user", "content": prompt}]
+            system=[
+                {
+                    "type": "text",
+                    "text": self.SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},  # Cache system prompt
+                }
+            ],
+            messages=[{"role": "user", "content": prompt}],
         )
 
         # Extract text from response, handling different content block types
         first_block = response.content[0]
-        if hasattr(first_block, 'text'):
+        if hasattr(first_block, "text"):
             comment = first_block.text.strip()
         else:
             comment = str(first_block).strip()
@@ -143,11 +147,7 @@ Output only the comment, no preamble."""
 
         return comment
 
-    def generate_batch_comments(
-        self,
-        findings: list[Finding],
-        batch_size: int = 5
-    ) -> list[str]:
+    def generate_batch_comments(self, findings: list[Finding], batch_size: int = 5) -> list[str]:
         """
         Generate multiple inline comments efficiently.
 
@@ -162,7 +162,7 @@ Output only the comment, no preamble."""
 
         # Process in batches
         for i in range(0, len(findings), batch_size):
-            batch = findings[i:i + batch_size]
+            batch = findings[i : i + batch_size]
             batch_comments = self._generate_batch_internal(batch)
             all_comments.extend(batch_comments)
 
@@ -181,7 +181,7 @@ Output only the comment, no preamble."""
 - Category: {finding.category.value}{aspect_text}
 - Issue: {finding.message}
 - Location: {finding.file_path}:{finding.line_number}
-- Code: {finding.code_snippet[:100] if finding.code_snippet else 'N/A'}
+- Code: {finding.code_snippet[:100] if finding.code_snippet else "N/A"}
 
 """
 
@@ -205,17 +205,15 @@ etc."""
             model=self.model,
             max_tokens=2000,
             temperature=0.3,
-            system=[{
-                "type": "text",
-                "text": self.SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"}
-            }],
-            messages=[{"role": "user", "content": prompt}]
+            system=[
+                {"type": "text", "text": self.SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}
+            ],
+            messages=[{"role": "user", "content": prompt}],
         )
 
         # Parse batch response, handling different content block types
         first_block = response.content[0]
-        if hasattr(first_block, 'text'):
+        if hasattr(first_block, "text"):
             batch_text = first_block.text
         else:
             batch_text = str(first_block)
@@ -231,7 +229,7 @@ etc."""
         import re
 
         comments = []
-        sections = re.split(r'### Finding \d+', batch_text)
+        sections = re.split(r"### Finding \d+", batch_text)
 
         for section in sections[1:]:  # Skip first empty section
             comment = section.strip()
@@ -259,26 +257,28 @@ etc."""
         """
         # Build statistics
         stats = results.statistics
-        critical_count = stats['by_severity'].get('critical', 0)
-        high_count = stats['by_severity'].get('high', 0)
-        medium_count = stats['by_severity'].get('medium', 0)
+        critical_count = stats["by_severity"].get("critical", 0)
+        high_count = stats["by_severity"].get("high", 0)
+        medium_count = stats["by_severity"].get("medium", 0)
 
         # Get top issues (max 5)
         top_findings = sorted(
-            results.all_findings,
-            key=lambda f: (f.severity.value, f.category.value)
+            results.all_findings, key=lambda f: (f.severity.value, f.category.value)
         )[:5]
 
         top_issues_text = ""
         for i, finding in enumerate(top_findings, 1):
-            top_issues_text += f"{i}. **{finding.severity.value.upper()}** - {finding.message[:100]}\n"
+            top_issues_text += (
+                f"{i}. **{finding.severity.value.upper()}** - {finding.message[:100]}\n"
+            )
 
         # Build improvement suggestions for approved PRs
         improvements_section = ""
-        if not results.should_block and stats['total'] > 0:
+        if not results.should_block and stats["total"] > 0:
             # Get lower severity findings for improvement suggestions
             low_severity_findings = [
-                f for f in results.all_findings
+                f
+                for f in results.all_findings
                 if f.severity in [Severity.MEDIUM, Severity.LOW, Severity.INFO]
             ]
             if low_severity_findings:
@@ -289,23 +289,23 @@ etc."""
 
         prompt = f"""Generate an engaging GitHub Pull Request summary comment for code review results.
 
-**Review Status**: {'❌ BLOCKED' if results.should_block else '✅ APPROVED'}
+**Review Status**: {"❌ BLOCKED" if results.should_block else "✅ APPROVED"}
 {f"**Block Reason**: {results.blocking_reason}" if results.should_block else ""}
 
 **Statistics**:
-- Total findings: {stats['total']}
+- Total findings: {stats["total"]}
 - 🔴 Critical: {critical_count}
 - 🟠 High: {high_count}
 - 🟡 Medium: {medium_count}
 - ⏱️ Execution time: {results.total_execution_time:.1f}s
 - 📁 Files changed: {len(results.pr_context.changed_files)}
-- 🔤 Languages: {', '.join(results.pr_context.detected_languages)}
+- 🔤 Languages: {", ".join(results.pr_context.detected_languages)}
 
 **Top Issues**:
 {top_issues_text}
 
 **Review Aspects Executed**:
-{', '.join([r.aspect_name for r in results.review_results])}{improvements_section}
+{", ".join([r.aspect_name for r in results.review_results])}{improvements_section}
 
 Create a professional, encouraging summary comment with:
 
@@ -315,7 +315,7 @@ Create a professional, encouraging summary comment with:
 4. **Top 3-5 issues** highlighted with severity
 5. **Category breakdown** (security, architecture, quality, etc.)
 6. **Actionable next steps** for the developer
-7. {"**Optional Improvements section** (if approved but has lower-severity findings)" if not results.should_block and stats['total'] > 0 else ""}
+7. {"**Optional Improvements section** (if approved but has lower-severity findings)" if not results.should_block and stats["total"] > 0 else ""}
 8. **Encouraging tone** (celebrate good practices, guide on improvements)
 9. **Emoji usage** for visual clarity
 10. **Maximum 2000 characters**
@@ -328,17 +328,15 @@ Output only the comment, no preamble."""
             model=self.model,
             max_tokens=1500,
             temperature=0.5,  # Slightly higher for engaging tone
-            system=[{
-                "type": "text",
-                "text": self.SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"}
-            }],
-            messages=[{"role": "user", "content": prompt}]
+            system=[
+                {"type": "text", "text": self.SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}
+            ],
+            messages=[{"role": "user", "content": prompt}],
         )
 
         # Extract text from response, handling different content block types
         first_block = response.content[0]
-        if hasattr(first_block, 'text'):
+        if hasattr(first_block, "text"):
             summary = first_block.text.strip()
         else:
             summary = str(first_block).strip()
@@ -350,10 +348,10 @@ Output only the comment, no preamble."""
 
     def _log_usage(self, usage, operation: str):
         """Log token usage and cost, and track in metrics."""
-        input_tokens = getattr(usage, 'input_tokens', 0)
-        output_tokens = getattr(usage, 'output_tokens', 0)
-        cache_read_tokens = getattr(usage, 'cache_read_input_tokens', 0)
-        cache_creation_tokens = getattr(usage, 'cache_creation_input_tokens', 0)
+        input_tokens = getattr(usage, "input_tokens", 0)
+        output_tokens = getattr(usage, "output_tokens", 0)
+        cache_read_tokens = getattr(usage, "cache_read_input_tokens", 0)
+        cache_creation_tokens = getattr(usage, "cache_creation_input_tokens", 0)
 
         # Calculate cost (Claude 3.5 Sonnet pricing)
         input_cost = input_tokens * 0.000003
@@ -371,8 +369,4 @@ Output only the comment, no preamble."""
 
         # Track in metrics if available
         if self.metrics:
-            self.metrics.add_tokens(
-                input_tokens,
-                output_tokens,
-                cache_read_tokens
-            )
+            self.metrics.add_tokens(input_tokens, output_tokens, cache_read_tokens)

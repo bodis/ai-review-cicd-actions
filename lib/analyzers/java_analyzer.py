@@ -2,6 +2,7 @@
 Java static analysis using SpotBugs, PMD, Checkstyle, and other tools.
 Supports both free open-source tools and commercial solutions.
 """
+
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -31,16 +32,16 @@ class JavaAnalyzer(BaseAnalyzer):
     """
 
     # Free tools that can be run directly
-    FREE_TOOLS = ['spotbugs', 'pmd', 'checkstyle', 'jacoco', 'archunit', 'owasp-dependency-check']
+    FREE_TOOLS = ["spotbugs", "pmd", "checkstyle", "jacoco", "archunit", "owasp-dependency-check"]
 
     # Paid tools (require external setup)
-    PAID_TOOLS = ['sonarqube', 'sonarcloud', 'qodana', 'snyk']
+    PAID_TOOLS = ["sonarqube", "sonarcloud", "qodana", "snyk"]
 
     def __init__(
         self,
         project_root: str = ".",
         tools: list[str] | None = None,
-        build_tool: str = "auto"  # auto, maven, gradle
+        build_tool: str = "auto",  # auto, maven, gradle
     ):
         """
         Initialize Java analyzer.
@@ -62,8 +63,9 @@ class JavaAnalyzer(BaseAnalyzer):
         """Detect the build tool used in the project."""
         if (self.project_root / "pom.xml").exists():
             return "maven"
-        elif (self.project_root / "build.gradle").exists() or \
-             (self.project_root / "build.gradle.kts").exists():
+        elif (self.project_root / "build.gradle").exists() or (
+            self.project_root / "build.gradle.kts"
+        ).exists():
             return "gradle"
         return "maven"  # Default to maven
 
@@ -72,9 +74,9 @@ class JavaAnalyzer(BaseAnalyzer):
         # Check if build tool is available
         try:
             if self.build_tool == "maven":
-                result = self.run_command(['mvn', '--version'])
+                result = self.run_command(["mvn", "--version"])
             elif self.build_tool == "gradle":
-                result = self.run_command(['gradle', '--version'])
+                result = self.run_command(["gradle", "--version"])
             else:
                 return False
 
@@ -93,7 +95,7 @@ class JavaAnalyzer(BaseAnalyzer):
             List of findings
         """
         # Filter for Java files
-        java_files = self.filter_files_by_extension(files, ['.java'])
+        java_files = self.filter_files_by_extension(files, [".java"])
 
         if not java_files:
             return []
@@ -103,17 +105,17 @@ class JavaAnalyzer(BaseAnalyzer):
         # Run each configured tool
         for tool in self.tools:
             try:
-                if tool == 'spotbugs':
+                if tool == "spotbugs":
                     findings = self._run_spotbugs()
-                elif tool == 'pmd':
+                elif tool == "pmd":
                     findings = self._run_pmd(java_files)
-                elif tool == 'checkstyle':
+                elif tool == "checkstyle":
                     findings = self._run_checkstyle(java_files)
-                elif tool == 'jacoco':
+                elif tool == "jacoco":
                     findings = self._run_jacoco()
-                elif tool == 'owasp-dependency-check':
+                elif tool == "owasp-dependency-check":
                     findings = self._run_owasp_dependency_check()
-                elif tool == 'archunit':
+                elif tool == "archunit":
                     findings = self._run_archunit()
                 elif tool in self.PAID_TOOLS:
                     findings = self._run_paid_tool(tool)
@@ -142,16 +144,18 @@ class JavaAnalyzer(BaseAnalyzer):
 
             if self.build_tool == "maven":
                 # Run SpotBugs via Maven plugin
-                _result = self.run_command([
-                    'mvn', 'spotbugs:spotbugs',
-                    '-Dspotbugs.xmlOutput=true',
-                    f'-Dspotbugs.xmlOutputDirectory={output_file.parent}'
-                ])
+                _result = self.run_command(
+                    [
+                        "mvn",
+                        "spotbugs:spotbugs",
+                        "-Dspotbugs.xmlOutput=true",
+                        f"-Dspotbugs.xmlOutputDirectory={output_file.parent}",
+                    ]
+                )
             else:  # gradle
-                _result = self.run_command([
-                    'gradle', 'spotbugsMain',
-                    '-Pspotbugs.reportDir=' + str(output_file.parent)
-                ])
+                _result = self.run_command(
+                    ["gradle", "spotbugsMain", "-Pspotbugs.reportDir=" + str(output_file.parent)]
+                )
 
             if not output_file.exists():
                 return []
@@ -177,16 +181,18 @@ class JavaAnalyzer(BaseAnalyzer):
             output_file = self.project_root / "target" / "pmd.xml"
 
             if self.build_tool == "maven":
-                _result = self.run_command([
-                    'mvn', 'pmd:pmd',
-                    '-Dpmd.reportFormat=xml',
-                    f'-Dpmd.outputDirectory={output_file.parent}'
-                ])
+                _result = self.run_command(
+                    [
+                        "mvn",
+                        "pmd:pmd",
+                        "-Dpmd.reportFormat=xml",
+                        f"-Dpmd.outputDirectory={output_file.parent}",
+                    ]
+                )
             else:  # gradle
-                _result = self.run_command([
-                    'gradle', 'pmdMain',
-                    f'-Ppmd.reportsDir={output_file.parent}'
-                ])
+                _result = self.run_command(
+                    ["gradle", "pmdMain", f"-Ppmd.reportsDir={output_file.parent}"]
+                )
 
             if not output_file.exists():
                 return []
@@ -211,15 +217,13 @@ class JavaAnalyzer(BaseAnalyzer):
             output_file = self.project_root / "target" / "checkstyle-result.xml"
 
             if self.build_tool == "maven":
-                _result = self.run_command([
-                    'mvn', 'checkstyle:checkstyle',
-                    f'-Dcheckstyle.output.file={output_file}'
-                ])
+                _result = self.run_command(
+                    ["mvn", "checkstyle:checkstyle", f"-Dcheckstyle.output.file={output_file}"]
+                )
             else:  # gradle
-                _result = self.run_command([
-                    'gradle', 'checkstyleMain',
-                    f'-Pcheckstyle.reportsDir={output_file.parent}'
-                ])
+                _result = self.run_command(
+                    ["gradle", "checkstyleMain", f"-Pcheckstyle.reportsDir={output_file.parent}"]
+                )
 
             if not output_file.exists():
                 return []
@@ -238,13 +242,9 @@ class JavaAnalyzer(BaseAnalyzer):
         """
         try:
             if self.build_tool == "maven":
-                _result = self.run_command([
-                    'mvn', 'jacoco:report'
-                ])
+                _result = self.run_command(["mvn", "jacoco:report"])
             else:  # gradle
-                _result = self.run_command([
-                    'gradle', 'jacocoTestReport'
-                ])
+                _result = self.run_command(["gradle", "jacocoTestReport"])
 
             # Parse coverage report and generate findings for low coverage
             coverage_file = self.project_root / "target" / "site" / "jacoco" / "jacoco.xml"
@@ -268,16 +268,22 @@ class JavaAnalyzer(BaseAnalyzer):
             output_file = self.project_root / "target" / "dependency-check-report.json"
 
             if self.build_tool == "maven":
-                _result = self.run_command([
-                    'mvn', 'dependency-check:check',
-                    f'-DoutputDirectory={output_file.parent}',
-                    '-Dformat=JSON'
-                ])
+                _result = self.run_command(
+                    [
+                        "mvn",
+                        "dependency-check:check",
+                        f"-DoutputDirectory={output_file.parent}",
+                        "-Dformat=JSON",
+                    ]
+                )
             else:  # gradle
-                _result = self.run_command([
-                    'gradle', 'dependencyCheckAnalyze',
-                    f'-Pdependency-check.outputDirectory={output_file.parent}'
-                ])
+                _result = self.run_command(
+                    [
+                        "gradle",
+                        "dependencyCheckAnalyze",
+                        f"-Pdependency-check.outputDirectory={output_file.parent}",
+                    ]
+                )
 
             if not output_file.exists():
                 return []
@@ -297,15 +303,9 @@ class JavaAnalyzer(BaseAnalyzer):
         """
         try:
             if self.build_tool == "maven":
-                _result = self.run_command([
-                    'mvn', 'test',
-                    '-Dtest=*ArchTest'
-                ])
+                _result = self.run_command(["mvn", "test", "-Dtest=*ArchTest"])
             else:  # gradle
-                _result = self.run_command([
-                    'gradle', 'test',
-                    '--tests', '*ArchTest'
-                ])
+                _result = self.run_command(["gradle", "test", "--tests", "*ArchTest"])
 
             # Parse test results for architectural violations
             # ArchUnit failures show up in standard test reports
@@ -336,27 +336,29 @@ class JavaAnalyzer(BaseAnalyzer):
             tree = ET.parse(xml_file)
             root = tree.getroot()
 
-            for bug in root.findall('.//BugInstance'):
-                priority = bug.get('priority', '2')
+            for bug in root.findall(".//BugInstance"):
+                priority = bug.get("priority", "2")
                 severity = self._map_spotbugs_priority(priority)
-                category = bug.get('category', 'CORRECTNESS')
+                category = bug.get("category", "CORRECTNESS")
 
-                source_line = bug.find('.//SourceLine')
+                source_line = bug.find(".//SourceLine")
                 if source_line is not None:
-                    file_path = source_line.get('sourcepath', '')
-                    line_number = int(source_line.get('start', 0))
-                    message = bug.find('.//LongMessage')
-                    message_text = message.text if message is not None else bug.get('type', '')
+                    file_path = source_line.get("sourcepath", "")
+                    line_number = int(source_line.get("start", 0))
+                    message = bug.find(".//LongMessage")
+                    message_text = message.text if message is not None else bug.get("type", "")
 
-                    findings.append(Finding(
-                        file_path=file_path,
-                        line_number=line_number,
-                        severity=severity,
-                        category=self._map_spotbugs_category(category),
-                        message=message_text,
-                        tool='spotbugs',
-                        rule_id=bug.get('type')
-                    ))
+                    findings.append(
+                        Finding(
+                            file_path=file_path,
+                            line_number=line_number,
+                            severity=severity,
+                            category=self._map_spotbugs_category(category),
+                            message=message_text,
+                            tool="spotbugs",
+                            rule_id=bug.get("type"),
+                        )
+                    )
 
         except Exception as e:
             print(f"Failed to parse SpotBugs XML: {e}")
@@ -370,25 +372,26 @@ class JavaAnalyzer(BaseAnalyzer):
             tree = ET.parse(xml_file)
             root = tree.getroot()
 
-            for file_elem in root.findall('.//file'):
-                file_path = file_elem.get('name', '')
+            for file_elem in root.findall(".//file"):
+                file_path = file_elem.get("name", "")
 
-                for violation in file_elem.findall('.//violation'):
-                    priority = int(violation.get('priority', 3))
+                for violation in file_elem.findall(".//violation"):
+                    priority = int(violation.get("priority", 3))
                     severity = self._map_pmd_priority(priority)
 
-                    findings.append(Finding(
-                        file_path=file_path,
-                        line_number=int(violation.get('beginline', 0)),
-                        severity=severity,
-                        category=self.map_category(
-                            violation.get('rule', ''),
-                            violation.text or ''
-                        ),
-                        message=violation.text.strip() if violation.text else '',
-                        tool='pmd',
-                        rule_id=violation.get('rule')
-                    ))
+                    findings.append(
+                        Finding(
+                            file_path=file_path,
+                            line_number=int(violation.get("beginline", 0)),
+                            severity=severity,
+                            category=self.map_category(
+                                violation.get("rule", ""), violation.text or ""
+                            ),
+                            message=violation.text.strip() if violation.text else "",
+                            tool="pmd",
+                            rule_id=violation.get("rule"),
+                        )
+                    )
 
         except Exception as e:
             print(f"Failed to parse PMD XML: {e}")
@@ -402,22 +405,24 @@ class JavaAnalyzer(BaseAnalyzer):
             tree = ET.parse(xml_file)
             root = tree.getroot()
 
-            for file_elem in root.findall('.//file'):
-                file_path = file_elem.get('name', '')
+            for file_elem in root.findall(".//file"):
+                file_path = file_elem.get("name", "")
 
-                for error in file_elem.findall('.//error'):
-                    severity_str = error.get('severity', 'warning')
+                for error in file_elem.findall(".//error"):
+                    severity_str = error.get("severity", "warning")
                     severity = self._map_checkstyle_severity(severity_str)
 
-                    findings.append(Finding(
-                        file_path=file_path,
-                        line_number=int(error.get('line', 0)),
-                        severity=severity,
-                        category=FindingCategory.STYLE,  # Checkstyle is primarily style
-                        message=error.get('message', ''),
-                        tool='checkstyle',
-                        rule_id=error.get('source', '').split('.')[-1]
-                    ))
+                    findings.append(
+                        Finding(
+                            file_path=file_path,
+                            line_number=int(error.get("line", 0)),
+                            severity=severity,
+                            category=FindingCategory.STYLE,  # Checkstyle is primarily style
+                            message=error.get("message", ""),
+                            tool="checkstyle",
+                            rule_id=error.get("source", "").split(".")[-1],
+                        )
+                    )
 
         except Exception as e:
             print(f"Failed to parse Checkstyle XML: {e}")
@@ -432,18 +437,18 @@ class JavaAnalyzer(BaseAnalyzer):
             root = tree.getroot()
 
             # Look for packages/classes with low coverage
-            for package in root.findall('.//package'):
-                package_name = package.get('name', '')
+            for package in root.findall(".//package"):
+                package_name = package.get("name", "")
 
-                for class_elem in package.findall('.//class'):
-                    _class_name = class_elem.get('name', '')  # Not used but kept for debugging
-                    source_file = class_elem.get('sourcefilename', '')
+                for class_elem in package.findall(".//class"):
+                    _class_name = class_elem.get("name", "")  # Not used but kept for debugging
+                    source_file = class_elem.get("sourcefilename", "")
 
                     # Calculate coverage percentages
                     line_counter = class_elem.find(".//counter[@type='LINE']")
                     if line_counter is not None:
-                        covered = int(line_counter.get('covered', 0))
-                        missed = int(line_counter.get('missed', 0))
+                        covered = int(line_counter.get("covered", 0))
+                        missed = int(line_counter.get("missed", 0))
                         total = covered + missed
 
                         if total > 0:
@@ -453,15 +458,17 @@ class JavaAnalyzer(BaseAnalyzer):
                             if coverage < 80:
                                 severity = Severity.MEDIUM if coverage < 50 else Severity.LOW
 
-                                findings.append(Finding(
-                                    file_path=f"{package_name}/{source_file}",
-                                    line_number=None,
-                                    severity=severity,
-                                    category=FindingCategory.TESTING,
-                                    message=f"Low test coverage: {coverage:.1f}% ({covered}/{total} lines covered)",
-                                    suggestion="Add tests to increase coverage above 80%",
-                                    tool='jacoco'
-                                ))
+                                findings.append(
+                                    Finding(
+                                        file_path=f"{package_name}/{source_file}",
+                                        line_number=None,
+                                        severity=severity,
+                                        category=FindingCategory.TESTING,
+                                        message=f"Low test coverage: {coverage:.1f}% ({covered}/{total} lines covered)",
+                                        suggestion="Add tests to increase coverage above 80%",
+                                        tool="jacoco",
+                                    )
+                                )
 
         except Exception as e:
             print(f"Failed to parse JaCoCo XML: {e}")
@@ -472,30 +479,32 @@ class JavaAnalyzer(BaseAnalyzer):
         """Parse OWASP Dependency-Check JSON report."""
         findings = []
         try:
-            with open(json_file, encoding='utf-8') as f:
+            with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
-            for dependency in data.get('dependencies', []):
-                file_name = dependency.get('fileName', '')
-                vulnerabilities = dependency.get('vulnerabilities', [])
+            for dependency in data.get("dependencies", []):
+                file_name = dependency.get("fileName", "")
+                vulnerabilities = dependency.get("vulnerabilities", [])
 
                 for vuln in vulnerabilities:
-                    severity_str = vuln.get('severity', 'MEDIUM')
+                    severity_str = vuln.get("severity", "MEDIUM")
                     severity = self._map_cvss_severity(severity_str)
 
-                    cve_id = vuln.get('name', '')
-                    description = vuln.get('description', '')
+                    cve_id = vuln.get("name", "")
+                    description = vuln.get("description", "")
 
-                    findings.append(Finding(
-                        file_path=file_name,
-                        line_number=None,
-                        severity=severity,
-                        category=FindingCategory.SECURITY,
-                        message=f"{cve_id}: {description}",
-                        suggestion=f"Update dependency to fix {cve_id}",
-                        tool='owasp-dependency-check',
-                        rule_id=cve_id
-                    ))
+                    findings.append(
+                        Finding(
+                            file_path=file_name,
+                            line_number=None,
+                            severity=severity,
+                            category=FindingCategory.SECURITY,
+                            message=f"{cve_id}: {description}",
+                            suggestion=f"Update dependency to fix {cve_id}",
+                            tool="owasp-dependency-check",
+                            rule_id=cve_id,
+                        )
+                    )
 
         except Exception as e:
             print(f"Failed to parse OWASP Dependency-Check JSON: {e}")
@@ -505,9 +514,9 @@ class JavaAnalyzer(BaseAnalyzer):
     def _map_spotbugs_priority(self, priority: str) -> Severity:
         """Map SpotBugs priority to severity."""
         priority_map = {
-            '1': Severity.HIGH,     # High priority
-            '2': Severity.MEDIUM,   # Medium priority
-            '3': Severity.LOW,      # Low priority
+            "1": Severity.HIGH,  # High priority
+            "2": Severity.MEDIUM,  # Medium priority
+            "3": Severity.LOW,  # Low priority
         }
         return priority_map.get(priority, Severity.MEDIUM)
 
@@ -522,40 +531,32 @@ class JavaAnalyzer(BaseAnalyzer):
 
     def _map_checkstyle_severity(self, severity: str) -> Severity:
         """Map Checkstyle severity to standard severity."""
-        severity_map = {
-            'error': Severity.HIGH,
-            'warning': Severity.MEDIUM,
-            'info': Severity.LOW
-        }
+        severity_map = {"error": Severity.HIGH, "warning": Severity.MEDIUM, "info": Severity.LOW}
         return severity_map.get(severity.lower(), Severity.MEDIUM)
 
     def _map_cvss_severity(self, severity: str) -> Severity:
         """Map CVSS severity to standard severity."""
         severity_map = {
-            'CRITICAL': Severity.CRITICAL,
-            'HIGH': Severity.HIGH,
-            'MEDIUM': Severity.MEDIUM,
-            'LOW': Severity.LOW
+            "CRITICAL": Severity.CRITICAL,
+            "HIGH": Severity.HIGH,
+            "MEDIUM": Severity.MEDIUM,
+            "LOW": Severity.LOW,
         }
         return severity_map.get(severity.upper(), Severity.MEDIUM)
 
     def _map_spotbugs_category(self, category: str) -> FindingCategory:
         """Map SpotBugs category to finding category."""
         category_map = {
-            'SECURITY': FindingCategory.SECURITY,
-            'PERFORMANCE': FindingCategory.PERFORMANCE,
-            'CORRECTNESS': FindingCategory.CODE_QUALITY,
-            'BAD_PRACTICE': FindingCategory.CODE_QUALITY,
-            'STYLE': FindingCategory.STYLE,
-            'MT_CORRECTNESS': FindingCategory.CODE_QUALITY,  # Multi-threading
+            "SECURITY": FindingCategory.SECURITY,
+            "PERFORMANCE": FindingCategory.PERFORMANCE,
+            "CORRECTNESS": FindingCategory.CODE_QUALITY,
+            "BAD_PRACTICE": FindingCategory.CODE_QUALITY,
+            "STYLE": FindingCategory.STYLE,
+            "MT_CORRECTNESS": FindingCategory.CODE_QUALITY,  # Multi-threading
         }
         return category_map.get(category, FindingCategory.CODE_QUALITY)
 
-    def _convert_to_finding(
-        self,
-        raw_result: dict[str, Any],
-        tool_name: str
-    ) -> Finding | None:
+    def _convert_to_finding(self, raw_result: dict[str, Any], tool_name: str) -> Finding | None:
         """Convert tool-specific result to Finding."""
         # This is handled by specific parsers above
         return None

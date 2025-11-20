@@ -1,11 +1,16 @@
 """
 Tests for data models.
 """
-import pytest
+
 from lib.models import (
-    Finding, Severity, FindingCategory,
-    PRContext, FileChange, ChangeType,
-    ReviewResult, AggregatedResults
+    AggregatedResults,
+    ChangeType,
+    FileChange,
+    Finding,
+    FindingCategory,
+    PRContext,
+    ReviewResult,
+    Severity,
 )
 
 
@@ -20,7 +25,7 @@ class TestFinding:
             severity=Severity.HIGH,
             category=FindingCategory.SECURITY,
             message="SQL injection vulnerability",
-            suggestion="Use parameterized queries"
+            suggestion="Use parameterized queries",
         )
 
         assert finding.file_path == "test.py"
@@ -37,16 +42,16 @@ class TestFinding:
             category=FindingCategory.SECURITY,
             message="Test message",
             tool="bandit",
-            rule_id="B608"
+            rule_id="B608",
         )
 
         result = finding.to_dict()
 
-        assert result['file_path'] == "test.py"
-        assert result['line_number'] == 10
-        assert result['severity'] == "high"
-        assert result['category'] == "security"
-        assert result['tool'] == "bandit"
+        assert result["file_path"] == "test.py"
+        assert result["line_number"] == 10
+        assert result["severity"] == "high"
+        assert result["category"] == "security"
+        assert result["tool"] == "bandit"
 
 
 class TestPRContext:
@@ -55,11 +60,7 @@ class TestPRContext:
     def test_pr_context_creation(self):
         """Test creating a PRContext instance."""
         file_change = FileChange(
-            path="test.py",
-            status="modified",
-            additions=10,
-            deletions=5,
-            changes=15
+            path="test.py", status="modified", additions=10, deletions=5, changes=15
         )
 
         pr_context = PRContext(
@@ -73,7 +74,7 @@ class TestPRContext:
             changed_files=[file_change],
             diff="test diff",
             detected_languages=["python"],
-            change_types=[ChangeType.BUGFIX]
+            change_types=[ChangeType.BUGFIX],
         )
 
         assert pr_context.pr_number == 123
@@ -93,14 +94,11 @@ class TestReviewResult:
             line_number=10,
             severity=Severity.MEDIUM,
             category=FindingCategory.CODE_QUALITY,
-            message="Test finding"
+            message="Test finding",
         )
 
         result = ReviewResult(
-            aspect_name="code_quality",
-            findings=[finding],
-            execution_time=1.5,
-            success=True
+            aspect_name="code_quality", findings=[finding], execution_time=1.5, success=True
         )
 
         assert result.aspect_name == "code_quality"
@@ -115,11 +113,7 @@ class TestAggregatedResults:
     def test_aggregated_results_to_dict(self):
         """Test converting AggregatedResults to dictionary."""
         file_change = FileChange(
-            path="test.py",
-            status="modified",
-            additions=10,
-            deletions=5,
-            changes=15
+            path="test.py", status="modified", additions=10, deletions=5, changes=15
         )
 
         pr_context = PRContext(
@@ -132,7 +126,7 @@ class TestAggregatedResults:
             labels=[],
             changed_files=[file_change],
             diff="",
-            detected_languages=["python"]
+            detected_languages=["python"],
         )
 
         finding = Finding(
@@ -140,34 +134,31 @@ class TestAggregatedResults:
             line_number=10,
             severity=Severity.HIGH,
             category=FindingCategory.SECURITY,
-            message="Test finding"
+            message="Test finding",
         )
 
         review_result = ReviewResult(
-            aspect_name="security",
-            findings=[finding],
-            execution_time=1.0,
-            success=True
+            aspect_name="security", findings=[finding], execution_time=1.0, success=True
         )
 
         aggregated = AggregatedResults(
             pr_context=pr_context,
             review_results=[review_result],
             all_findings=[finding],
-            statistics={'total': 1},
+            statistics={"total": 1},
             should_block=True,
             blocking_reason="Critical issues found",
-            total_execution_time=2.5
+            total_execution_time=2.5,
         )
 
         result_dict = aggregated.to_dict()
 
-        assert result_dict['pr_number'] == 123
-        assert result_dict['should_block'] is True
-        assert result_dict['blocking_reason'] == "Critical issues found"
-        assert result_dict['total_execution_time'] == 2.5
-        assert len(result_dict['findings']) == 1
-        assert len(result_dict['review_results']) == 1
+        assert result_dict["pr_number"] == 123
+        assert result_dict["should_block"] is True
+        assert result_dict["blocking_reason"] == "Critical issues found"
+        assert result_dict["total_execution_time"] == 2.5
+        assert len(result_dict["findings"]) == 1
+        assert len(result_dict["review_results"]) == 1
 
 
 class TestEnums:

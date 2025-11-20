@@ -1,6 +1,7 @@
 """
 PR Context Builder - Extract and prepare PR information for review.
 """
+
 import os
 import re
 from typing import Any
@@ -15,65 +16,65 @@ class PRContextBuilder:
     """Builds context information about a Pull Request."""
 
     LANGUAGE_EXTENSIONS = {
-        '.py': 'python',
-        '.js': 'javascript',
-        '.jsx': 'javascript',
-        '.ts': 'typescript',
-        '.tsx': 'typescript',
-        '.java': 'java',
-        '.kt': 'kotlin',
-        '.kts': 'kotlin',
-        '.go': 'go',
-        '.rs': 'rust',
-        '.rb': 'ruby',
-        '.php': 'php',
-        '.cs': 'csharp',
-        '.cpp': 'cpp',
-        '.c': 'c',
-        '.h': 'c',
-        '.hpp': 'cpp',
-        '.sh': 'shell',
-        '.yml': 'yaml',
-        '.yaml': 'yaml',
-        '.json': 'json',
-        '.md': 'markdown',
-        '.xml': 'xml',
-        '.gradle': 'gradle',
-        '.properties': 'properties'
+        ".py": "python",
+        ".js": "javascript",
+        ".jsx": "javascript",
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".java": "java",
+        ".kt": "kotlin",
+        ".kts": "kotlin",
+        ".go": "go",
+        ".rs": "rust",
+        ".rb": "ruby",
+        ".php": "php",
+        ".cs": "csharp",
+        ".cpp": "cpp",
+        ".c": "c",
+        ".h": "c",
+        ".hpp": "cpp",
+        ".sh": "shell",
+        ".yml": "yaml",
+        ".yaml": "yaml",
+        ".json": "json",
+        ".md": "markdown",
+        ".xml": "xml",
+        ".gradle": "gradle",
+        ".properties": "properties",
     }
 
     DEPENDENCY_FILES = {
         # Python dependency files
-        'requirements.txt': 'python',
-        'requirements-dev.txt': 'python',
-        'requirements.in': 'python',
-        'pyproject.toml': 'python',  # UV, Poetry, PDM, Hatch
-        'poetry.lock': 'python',
-        'uv.lock': 'python',
-        'Pipfile': 'python',
-        'Pipfile.lock': 'python',
-        'setup.py': 'python',
-        'setup.cfg': 'python',
+        "requirements.txt": "python",
+        "requirements-dev.txt": "python",
+        "requirements.in": "python",
+        "pyproject.toml": "python",  # UV, Poetry, PDM, Hatch
+        "poetry.lock": "python",
+        "uv.lock": "python",
+        "Pipfile": "python",
+        "Pipfile.lock": "python",
+        "setup.py": "python",
+        "setup.cfg": "python",
         # JavaScript/TypeScript
-        'package.json': 'javascript',
-        'package-lock.json': 'javascript',
-        'yarn.lock': 'javascript',
-        'pnpm-lock.yaml': 'javascript',
-        'bun.lockb': 'javascript',
+        "package.json": "javascript",
+        "package-lock.json": "javascript",
+        "yarn.lock": "javascript",
+        "pnpm-lock.yaml": "javascript",
+        "bun.lockb": "javascript",
         # Java
-        'pom.xml': 'java',
-        'build.gradle': 'java',
-        'build.gradle.kts': 'java',
-        'gradle.properties': 'java',
+        "pom.xml": "java",
+        "build.gradle": "java",
+        "build.gradle.kts": "java",
+        "gradle.properties": "java",
         # Other languages
-        'go.mod': 'go',
-        'go.sum': 'go',
-        'Cargo.toml': 'rust',
-        'Cargo.lock': 'rust',
-        'Gemfile': 'ruby',
-        'Gemfile.lock': 'ruby',
-        'composer.json': 'php',
-        'composer.lock': 'php'
+        "go.mod": "go",
+        "go.sum": "go",
+        "Cargo.toml": "rust",
+        "Cargo.lock": "rust",
+        "Gemfile": "ruby",
+        "Gemfile.lock": "ruby",
+        "composer.json": "php",
+        "composer.lock": "php",
     }
 
     def __init__(self, github_token: str | None = None):
@@ -83,17 +84,13 @@ class PRContextBuilder:
         Args:
             github_token: GitHub API token. If None, uses GITHUB_TOKEN env var.
         """
-        token = github_token or os.getenv('GITHUB_TOKEN')
+        token = github_token or os.getenv("GITHUB_TOKEN")
         if not token:
             raise ValueError("GitHub token is required")
 
         self.github = Github(token)
 
-    def build_context(
-        self,
-        repo_name: str,
-        pr_number: int
-    ) -> PRContext:
+    def build_context(self, repo_name: str, pr_number: int) -> PRContext:
         """
         Build complete context for a PR.
 
@@ -124,27 +121,27 @@ class PRContextBuilder:
 
         return PRContext(
             pr_number=pr_number,
-            title=metadata['title'],
-            description=metadata['description'],
-            author=metadata['author'],
-            base_branch=metadata['base_branch'],
-            head_branch=metadata['head_branch'],
-            labels=metadata['labels'],
+            title=metadata["title"],
+            description=metadata["description"],
+            author=metadata["author"],
+            base_branch=metadata["base_branch"],
+            head_branch=metadata["head_branch"],
+            labels=metadata["labels"],
             changed_files=changed_files,
             diff=diff,
             detected_languages=detected_languages,
-            change_types=change_types
+            change_types=change_types,
         )
 
     def _get_pr_metadata(self, pr: PullRequest) -> dict[str, Any]:
         """Extract PR metadata."""
         return {
-            'title': pr.title,
-            'description': pr.body or '',
-            'author': pr.user.login,
-            'base_branch': pr.base.ref,
-            'head_branch': pr.head.ref,
-            'labels': [label.name for label in pr.labels]
+            "title": pr.title,
+            "description": pr.body or "",
+            "author": pr.user.login,
+            "base_branch": pr.base.ref,
+            "head_branch": pr.head.ref,
+            "labels": [label.name for label in pr.labels],
         }
 
     def _get_changed_files(self, pr: PullRequest) -> list[FileChange]:
@@ -158,8 +155,8 @@ class PRContextBuilder:
                 additions=file.additions,
                 deletions=file.deletions,
                 changes=file.changes,
-                patch=file.patch if hasattr(file, 'patch') else None,
-                old_path=file.previous_filename if file.status == 'renamed' else None
+                patch=file.patch if hasattr(file, "patch") else None,
+                old_path=file.previous_filename if file.status == "renamed" else None,
             )
             changed_files.append(change)
 
@@ -208,11 +205,7 @@ class PRContextBuilder:
 
         return sorted(languages)
 
-    def _detect_change_types(
-        self,
-        changed_files: list[FileChange],
-        diff: str
-    ) -> list[ChangeType]:
+    def _detect_change_types(self, changed_files: list[FileChange], diff: str) -> list[ChangeType]:
         """
         Detect types of changes in the PR.
 
@@ -261,12 +254,12 @@ class PRContextBuilder:
     def _has_test_changes(self, changed_files: list[FileChange]) -> bool:
         """Check if PR includes test file changes."""
         test_patterns = [
-            r'test_.*\.py$',
-            r'.*_test\.py$',
-            r'.*\.test\.(js|ts|jsx|tsx)$',
-            r'.*\.spec\.(js|ts|jsx|tsx)$',
-            r'tests?/',
-            r'__tests__/'
+            r"test_.*\.py$",
+            r".*_test\.py$",
+            r".*\.test\.(js|ts|jsx|tsx)$",
+            r".*\.spec\.(js|ts|jsx|tsx)$",
+            r"tests?/",
+            r"__tests__/",
         ]
 
         for file_change in changed_files:
@@ -278,13 +271,7 @@ class PRContextBuilder:
 
     def _has_documentation_changes(self, changed_files: list[FileChange]) -> bool:
         """Check if PR includes documentation changes."""
-        doc_patterns = [
-            r'\.md$',
-            r'\.rst$',
-            r'docs?/',
-            r'README',
-            r'CHANGELOG'
-        ]
+        doc_patterns = [r"\.md$", r"\.rst$", r"docs?/", r"README", r"CHANGELOG"]
 
         for file_change in changed_files:
             path = file_change.path
@@ -296,12 +283,12 @@ class PRContextBuilder:
     def _has_security_patterns(self, diff: str) -> bool:
         """Check for security-sensitive patterns in diff."""
         security_patterns = [
-            r'(password|secret|api[_-]?key|token|auth)',
-            r'eval\s*\(',
-            r'exec\s*\(',
-            r'(subprocess|os\.system)',
-            r'(innerHTML|dangerouslySetInnerHTML)',
-            r'(md5|sha1)\s*\(',  # Weak crypto
+            r"(password|secret|api[_-]?key|token|auth)",
+            r"eval\s*\(",
+            r"exec\s*\(",
+            r"(subprocess|os\.system)",
+            r"(innerHTML|dangerouslySetInnerHTML)",
+            r"(md5|sha1)\s*\(",  # Weak crypto
         ]
 
         diff_lower = diff.lower()
@@ -313,9 +300,9 @@ class PRContextBuilder:
     def _has_breaking_change_patterns(self, diff: str) -> bool:
         """Check for potential breaking changes in diff."""
         breaking_patterns = [
-            r'^\-\s*(def|function|class|export)\s+\w+',  # Removed definitions
-            r'BREAKING CHANGE',
-            r'!:',  # Conventional commits breaking change
+            r"^\-\s*(def|function|class|export)\s+\w+",  # Removed definitions
+            r"BREAKING CHANGE",
+            r"!:",  # Conventional commits breaking change
         ]
 
         for pattern in breaking_patterns:
@@ -339,27 +326,25 @@ class PRContextBuilder:
         file_count = len(pr_context.changed_files)
 
         # Calculate impact score (0-100)
-        impact_score = min(100, (
-            (file_count * 5) +
-            (total_changes // 10) +
-            (len(pr_context.change_types) * 10)
-        ))
+        impact_score = min(
+            100, ((file_count * 5) + (total_changes // 10) + (len(pr_context.change_types) * 10))
+        )
 
         # Determine risk level
         if impact_score > 70:
-            risk_level = 'high'
+            risk_level = "high"
         elif impact_score > 40:
-            risk_level = 'medium'
+            risk_level = "medium"
         else:
-            risk_level = 'low'
+            risk_level = "low"
 
         return {
-            'impact_score': impact_score,
-            'risk_level': risk_level,
-            'total_changes': total_changes,
-            'total_additions': total_additions,
-            'total_deletions': total_deletions,
-            'file_count': file_count,
-            'languages': pr_context.detected_languages,
-            'change_types': [ct.value for ct in pr_context.change_types]
+            "impact_score": impact_score,
+            "risk_level": risk_level,
+            "total_changes": total_changes,
+            "total_additions": total_additions,
+            "total_deletions": total_deletions,
+            "file_count": file_count,
+            "languages": pr_context.detected_languages,
+            "change_types": [ct.value for ct in pr_context.change_types],
         }

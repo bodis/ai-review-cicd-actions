@@ -585,6 +585,26 @@ uv run python main.py \
   --company-config github://your-org/policies/main/code-review.yml
 ```
 
+### Self-Review
+
+**This project reviews itself using its own review system.**
+
+When you create a PR on this repository:
+- `.github/workflows/ai-code-review.yml` runs automatically
+- Executes the full review pipeline (static analysis + AI reviews)
+- Uses `.github/ai-review-config.yml` to configure review aspects
+- Posts findings as PR comments
+
+The same tools (Ruff, Pylint, Bandit, mypy) that analyze other projects are used here, with configurations from `pyproject.toml`.
+
+For quick local checks without the full AI review:
+```bash
+make format      # Auto-format code
+make lint        # Check linting
+make test        # Run tests
+make quality     # All checks
+```
+
 ### Adding Dependencies
 
 ```bash
@@ -652,6 +672,7 @@ The documentation is organized into four specialized guides based on integration
 
 Each guide covers tool setup, configuration, troubleshooting, and working examples:
 
+- 🏗️ **[Architecture](docs/ARCHITECTURE.md)** - Platform abstraction, dual GitHub/GitLab support
 - 🐍 **[Python Integration](docs/PYTHON_INTEGRATION.md)** - Ruff, Pylint, Bandit, mypy setup
 - 🟨 **[JavaScript/TypeScript Integration](docs/JAVASCRIPT_INTEGRATION.md)** - ESLint, Prettier, TSC configuration
 - ☕ **[Java Integration](docs/JAVA_INTEGRATION.md)** - SpotBugs, PMD, Checkstyle, JaCoCo, OWASP integration

@@ -1,6 +1,7 @@
 """
 Data models for the code review system.
 """
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -8,6 +9,7 @@ from typing import Any, Optional
 
 class Severity(str, Enum):
     """Finding severity levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -17,6 +19,7 @@ class Severity(str, Enum):
 
 class FindingCategory(str, Enum):
     """Categories of code review findings."""
+
     SECURITY = "security"
     PERFORMANCE = "performance"
     ARCHITECTURE = "architecture"
@@ -29,6 +32,7 @@ class FindingCategory(str, Enum):
 
 class ChangeType(str, Enum):
     """Types of changes detected in PRs."""
+
     FEATURE = "feature"
     BUGFIX = "bugfix"
     REFACTOR = "refactor"
@@ -44,6 +48,7 @@ class ChangeType(str, Enum):
 @dataclass
 class Finding:
     """Represents a single code review finding."""
+
     file_path: str
     line_number: int | None
     severity: Severity
@@ -53,7 +58,9 @@ class Finding:
     tool: str | None = None
     rule_id: str | None = None
     code_snippet: str | None = None
-    aspect: str | None = None  # Review aspect that found this issue (e.g., "security_review", "python_static_analysis")
+    aspect: str | None = (
+        None  # Review aspect that found this issue (e.g., "security_review", "python_static_analysis")
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert finding to dictionary."""
@@ -67,13 +74,14 @@ class Finding:
             "tool": self.tool,
             "rule_id": self.rule_id,
             "code_snippet": self.code_snippet,
-            "aspect": self.aspect
+            "aspect": self.aspect,
         }
 
 
 @dataclass
 class FileChange:
     """Represents a file change in a PR."""
+
     path: str
     status: str  # added, modified, deleted, renamed
     additions: int
@@ -86,6 +94,7 @@ class FileChange:
 @dataclass
 class PRContext:
     """Context information about a Pull Request."""
+
     pr_number: int
     title: str
     description: str
@@ -102,6 +111,7 @@ class PRContext:
 @dataclass
 class ReviewResult:
     """Result from a single review aspect."""
+
     aspect_name: str
     findings: list[Finding]
     execution_time: float
@@ -113,6 +123,7 @@ class ReviewResult:
 @dataclass
 class Metrics:
     """Performance and cost metrics for review pipeline."""
+
     total_duration: float = 0.0
     aspect_durations: dict[str, float] = field(default_factory=dict)
     api_calls: int = 0
@@ -138,23 +149,24 @@ class Metrics:
     def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary."""
         return {
-            'performance': {
-                'total_duration_seconds': round(self.total_duration, 2),
-                'aspect_durations': {k: round(v, 2) for k, v in self.aspect_durations.items()},
+            "performance": {
+                "total_duration_seconds": round(self.total_duration, 2),
+                "aspect_durations": {k: round(v, 2) for k, v in self.aspect_durations.items()},
             },
-            'api_usage': {
-                'total_calls': self.api_calls,
-                'input_tokens': self.input_tokens,
-                'output_tokens': self.output_tokens,
-                'cache_read_tokens': self.cache_read_tokens,
-                'estimated_cost_usd': round(self.estimated_cost_usd, 4),
-            }
+            "api_usage": {
+                "total_calls": self.api_calls,
+                "input_tokens": self.input_tokens,
+                "output_tokens": self.output_tokens,
+                "cache_read_tokens": self.cache_read_tokens,
+                "estimated_cost_usd": round(self.estimated_cost_usd, 4),
+            },
         }
 
 
 @dataclass
 class AggregatedResults:
     """Aggregated results from all review aspects."""
+
     pr_context: PRContext
     review_results: list[ReviewResult]
     all_findings: list[Finding]
@@ -162,7 +174,7 @@ class AggregatedResults:
     should_block: bool
     blocking_reason: str | None = None
     total_execution_time: float = 0.0
-    metrics: Optional['Metrics'] = None
+    metrics: Optional["Metrics"] = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -181,10 +193,10 @@ class AggregatedResults:
                     "success": r.success,
                     "execution_time": r.execution_time,
                     "findings_count": len(r.findings),
-                    "error": r.error_message
+                    "error": r.error_message,
                 }
                 for r in self.review_results
-            ]
+            ],
         }
 
         if self.metrics:
@@ -202,6 +214,7 @@ class AggregatedResults:
 @dataclass
 class DependencyChange:
     """Represents a dependency change."""
+
     file: str
     package_name: str
     old_version: str | None

@@ -1,6 +1,7 @@
 """
 Configuration manager for multi-level configuration loading and merging.
 """
+
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ from jsonschema import ValidationError, validate
 
 class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
+
     pass
 
 
@@ -32,10 +34,10 @@ class ConfigManager:
                         "type": {"type": "string", "enum": ["classical", "ai"]},
                         "tools": {"type": "array", "items": {"type": "string"}},
                         "prompt_file": {"type": "string"},
-                        "parallel": {"type": "boolean"}
+                        "parallel": {"type": "boolean"},
                     },
-                    "required": ["name", "enabled", "type"]
-                }
+                    "required": ["name", "enabled", "type"],
+                },
             },
             "blocking_rules": {
                 "type": "object",
@@ -47,10 +49,10 @@ class ConfigManager:
                         "properties": {
                             "critical": {"type": "integer"},
                             "high": {"type": "integer"},
-                            "medium": {"type": "integer"}
-                        }
-                    }
-                }
+                            "medium": {"type": "integer"},
+                        },
+                    },
+                },
             },
             "company_policies_source": {"type": "string"},
             "project_context": {
@@ -58,8 +60,8 @@ class ConfigManager:
                 "properties": {
                     "name": {"type": "string"},
                     "architecture": {"type": "string"},
-                    "critical_paths": {"type": "array", "items": {"type": "string"}}
-                }
+                    "critical_paths": {"type": "array", "items": {"type": "string"}},
+                },
             },
             "project_constraints": {"type": "array", "items": {"type": "string"}},
             "custom_rules": {
@@ -69,11 +71,11 @@ class ConfigManager:
                     "properties": {
                         "pattern": {"type": "string"},
                         "message": {"type": "string"},
-                        "severity": {"type": "string"}
-                    }
-                }
-            }
-        }
+                        "severity": {"type": "string"},
+                    },
+                },
+            },
+        },
     }
 
     DEFAULT_CONFIG = {
@@ -83,52 +85,48 @@ class ConfigManager:
                 "enabled": True,
                 "type": "classical",
                 "tools": ["ruff", "pylint", "bandit", "mypy"],
-                "parallel": True
+                "parallel": True,
             },
             {
                 "name": "javascript_static_analysis",
                 "enabled": True,
                 "type": "classical",
                 "tools": ["eslint", "prettier"],
-                "parallel": True
+                "parallel": True,
             },
             {
                 "name": "security_review",
                 "enabled": True,
                 "type": "ai",
                 "prompt_file": "prompts/security-review.md",
-                "parallel": False
+                "parallel": False,
             },
             {
                 "name": "architecture_review",
                 "enabled": True,
                 "type": "ai",
                 "prompt_file": "prompts/architecture-review.md",
-                "parallel": False
+                "parallel": False,
             },
             {
                 "name": "code_quality_review",
                 "enabled": True,
                 "type": "ai",
                 "prompt_file": "prompts/base-review.md",
-                "parallel": False
-            }
+                "parallel": False,
+            },
         ],
         "blocking_rules": {
             "block_on_critical": True,
             "block_on_high": False,
-            "max_findings": {
-                "critical": 0,
-                "high": 5,
-                "medium": 20
-            }
+            "max_findings": {"critical": 0, "high": 5, "medium": 20},
         },
         "github": {
             "post_summary_comment": True,
             "post_inline_comments": True,
             "update_status_check": True,
-            "inline_comment_severity_threshold": "high"
-        }
+            "inline_comment_severity_threshold": "high",
+        },
     }
 
     def __init__(self, project_root: str = "."):
@@ -155,7 +153,7 @@ class ConfigManager:
             possible_paths = [
                 self.project_root / ".github" / "ai-review-config.yml",
                 self.project_root / ".github" / "ai-review-config.yaml",
-                self.project_root / "ai-review-config.yml"
+                self.project_root / "ai-review-config.yml",
             ]
 
             for config_path in possible_paths:
@@ -167,8 +165,8 @@ class ConfigManager:
             return {}
 
         try:
-            with open(path, encoding='utf-8') as f:
-                if path.endswith('.json'):
+            with open(path, encoding="utf-8") as f:
+                if path.endswith(".json"):
                     return json.load(f)
                 return yaml.safe_load(f) or {}
         except Exception as e:
@@ -189,16 +187,16 @@ class ConfigManager:
             return {}
 
         try:
-            if source.startswith('github://'):
+            if source.startswith("github://"):
                 return self._fetch_from_github(source)
-            elif source.startswith('http://') or source.startswith('https://'):
+            elif source.startswith("http://") or source.startswith("https://"):
                 return self._fetch_from_url(source)
-            elif source.startswith('file://'):
-                file_path = source.replace('file://', '')
-                with open(file_path, encoding='utf-8') as f:
+            elif source.startswith("file://"):
+                file_path = source.replace("file://", "")
+                with open(file_path, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
             # Assume it's a file path
-            with open(source, encoding='utf-8') as f:
+            with open(source, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except Exception as e:
             print(f"Warning: Failed to load company config from {source}: {e}")
@@ -211,18 +209,18 @@ class ConfigManager:
         Format: github://org/repo/path/to/file.yml[@branch]
         """
         # Parse github:// URL
-        parts = source.replace('github://', '').split('/')
+        parts = source.replace("github://", "").split("/")
         if len(parts) < 3:
             raise ConfigurationError(f"Invalid GitHub URL format: {source}")
 
         org = parts[0]
         repo = parts[1]
-        file_path = '/'.join(parts[2:])
+        file_path = "/".join(parts[2:])
 
         # Check for branch specification
-        branch = 'main'
-        if '@' in file_path:
-            file_path, branch = file_path.rsplit('@', 1)
+        branch = "main"
+        if "@" in file_path:
+            file_path, branch = file_path.rsplit("@", 1)
 
         # Construct raw GitHub URL
         url = f"https://raw.githubusercontent.com/{org}/{repo}/{branch}/{file_path}"
@@ -234,7 +232,7 @@ class ConfigManager:
         response.raise_for_status()
 
         content = response.text
-        if url.endswith('.json'):
+        if url.endswith(".json"):
             return json.loads(content)
         else:
             return yaml.safe_load(content) or {}
@@ -285,9 +283,7 @@ class ConfigManager:
             raise ConfigurationError(f"Configuration validation failed: {e.message}") from e
 
     def load_all_configs(
-        self,
-        project_config_path: str | None = None,
-        company_config_source: str | None = None
+        self, project_config_path: str | None = None, company_config_source: str | None = None
     ) -> dict[str, Any]:
         """
         Load and merge all configuration levels.
@@ -319,7 +315,7 @@ class ConfigManager:
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value by key."""
-        keys = key.split('.')
+        keys = key.split(".")
         value = self.config
 
         for k in keys:
@@ -348,12 +344,13 @@ class ConfigManager:
         for key, value in config.items():
             if isinstance(value, str):
                 # Resolve environment variable references
-                if '${' in value:
+                if "${" in value:
                     import re
-                    matches = re.findall(r'\$\{([^}]+)\}', value)
+
+                    matches = re.findall(r"\$\{([^}]+)\}", value)
                     for match in matches:
-                        env_value = os.getenv(match, '')
-                        value = value.replace(f'${{{match}}}', env_value)
+                        env_value = os.getenv(match, "")
+                        value = value.replace(f"${{{match}}}", env_value)
                 resolved[key] = value
             elif isinstance(value, dict):
                 resolved[key] = self.resolve_config_references(value)

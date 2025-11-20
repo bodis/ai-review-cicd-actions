@@ -1,6 +1,7 @@
 """
 Base analyzer class for all static analysis tools.
 """
+
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -50,10 +51,7 @@ class BaseAnalyzer(ABC):
         pass
 
     def run_command(
-        self,
-        command: list[str],
-        cwd: str | None = None,
-        capture_output: bool = True
+        self, command: list[str], cwd: str | None = None, capture_output: bool = True
     ) -> subprocess.CompletedProcess:
         """
         Run a shell command.
@@ -72,7 +70,7 @@ class BaseAnalyzer(ABC):
                 cwd=cwd or str(self.project_root),
                 capture_output=capture_output,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
             )
             return result
         except subprocess.TimeoutExpired as e:
@@ -80,11 +78,7 @@ class BaseAnalyzer(ABC):
         except FileNotFoundError as e:
             raise RuntimeError(f"Command not found: {command[0]}") from e
 
-    def filter_files_by_extension(
-        self,
-        files: list[str],
-        extensions: list[str]
-    ) -> list[str]:
+    def filter_files_by_extension(self, files: list[str], extensions: list[str]) -> list[str]:
         """
         Filter files by extension.
 
@@ -95,15 +89,10 @@ class BaseAnalyzer(ABC):
         Returns:
             Filtered list of files
         """
-        return [
-            f for f in files
-            if any(f.endswith(ext) for ext in extensions)
-        ]
+        return [f for f in files if any(f.endswith(ext) for ext in extensions)]
 
     def standardize_results(
-        self,
-        raw_results: list[dict[str, Any]],
-        tool_name: str
+        self, raw_results: list[dict[str, Any]], tool_name: str
     ) -> list[Finding]:
         """
         Convert tool-specific results to standard Finding objects.
@@ -125,11 +114,7 @@ class BaseAnalyzer(ABC):
         return findings
 
     @abstractmethod
-    def _convert_to_finding(
-        self,
-        raw_result: dict[str, Any],
-        tool_name: str
-    ) -> Finding | None:
+    def _convert_to_finding(self, raw_result: dict[str, Any], tool_name: str) -> Finding | None:
         """
         Convert a single raw result to a Finding object.
         Must be implemented by each analyzer.
@@ -144,9 +129,7 @@ class BaseAnalyzer(ABC):
         pass
 
     def map_severity(
-        self,
-        tool_severity: str,
-        severity_map: dict[str, Severity] | None = None
+        self, tool_severity: str, severity_map: dict[str, Severity] | None = None
     ) -> Severity:
         """
         Map tool-specific severity to standard severity level.
@@ -164,22 +147,18 @@ class BaseAnalyzer(ABC):
         # Default mapping
         severity_lower = tool_severity.lower()
 
-        if severity_lower in ['critical', 'error', 'high']:
+        if severity_lower in ["critical", "error", "high"]:
             return Severity.HIGH
-        elif severity_lower in ['warning', 'medium', 'moderate']:
+        elif severity_lower in ["warning", "medium", "moderate"]:
             return Severity.MEDIUM
-        elif severity_lower in ['low', 'minor']:
+        elif severity_lower in ["low", "minor"]:
             return Severity.LOW
-        elif severity_lower in ['info', 'note', 'style']:
+        elif severity_lower in ["info", "note", "style"]:
             return Severity.INFO
         else:
             return Severity.MEDIUM  # Default to medium if unknown
 
-    def map_category(
-        self,
-        rule_id: str,
-        message: str
-    ) -> FindingCategory:
+    def map_category(self, rule_id: str, message: str) -> FindingCategory:
         """
         Determine finding category based on rule ID and message.
 
@@ -194,43 +173,82 @@ class BaseAnalyzer(ABC):
         msg_lower = message.lower()
 
         # Security-related
-        if any(term in rule_lower or term in msg_lower for term in [
-            'security', 'sql', 'injection', 'xss', 'csrf', 'auth', 'crypto',
-            'password', 'secret', 'vulnerability', 'cve'
-        ]):
+        if any(
+            term in rule_lower or term in msg_lower
+            for term in [
+                "security",
+                "sql",
+                "injection",
+                "xss",
+                "csrf",
+                "auth",
+                "crypto",
+                "password",
+                "secret",
+                "vulnerability",
+                "cve",
+            ]
+        ):
             return FindingCategory.SECURITY
 
         # Performance-related
-        if any(term in rule_lower or term in msg_lower for term in [
-            'performance', 'slow', 'optimization', 'efficiency', 'loop',
-            'algorithm', 'complexity', 'n+1'
-        ]):
+        if any(
+            term in rule_lower or term in msg_lower
+            for term in [
+                "performance",
+                "slow",
+                "optimization",
+                "efficiency",
+                "loop",
+                "algorithm",
+                "complexity",
+                "n+1",
+            ]
+        ):
             return FindingCategory.PERFORMANCE
 
         # Architecture-related
-        if any(term in rule_lower or term in msg_lower for term in [
-            'architecture', 'design', 'coupling', 'cohesion', 'dependency',
-            'layer', 'separation'
-        ]):
+        if any(
+            term in rule_lower or term in msg_lower
+            for term in [
+                "architecture",
+                "design",
+                "coupling",
+                "cohesion",
+                "dependency",
+                "layer",
+                "separation",
+            ]
+        ):
             return FindingCategory.ARCHITECTURE
 
         # Testing-related
-        if any(term in rule_lower or term in msg_lower for term in [
-            'test', 'coverage', 'assertion', 'mock'
-        ]):
+        if any(
+            term in rule_lower or term in msg_lower
+            for term in ["test", "coverage", "assertion", "mock"]
+        ):
             return FindingCategory.TESTING
 
         # Documentation-related
-        if any(term in rule_lower or term in msg_lower for term in [
-            'documentation', 'docstring', 'comment', 'doc', 'missing-doc'
-        ]):
+        if any(
+            term in rule_lower or term in msg_lower
+            for term in ["documentation", "docstring", "comment", "doc", "missing-doc"]
+        ):
             return FindingCategory.DOCUMENTATION
 
         # Style-related
-        if any(term in rule_lower or term in msg_lower for term in [
-            'style', 'format', 'naming', 'convention', 'whitespace',
-            'indent', 'line-length'
-        ]):
+        if any(
+            term in rule_lower or term in msg_lower
+            for term in [
+                "style",
+                "format",
+                "naming",
+                "convention",
+                "whitespace",
+                "indent",
+                "line-length",
+            ]
+        ):
             return FindingCategory.STYLE
 
         # Default to code quality

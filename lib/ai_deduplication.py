@@ -4,6 +4,7 @@ AI-powered semantic deduplication using Claude Haiku.
 Uses a fast, cheap model to intelligently detect duplicate findings
 that describe the same issue with different wording.
 """
+
 import json
 import os
 
@@ -19,7 +20,7 @@ class AIDeduplicator:
         self,
         api_key: str | None = None,
         model: str = "claude-haiku-4-5",
-        metrics: Metrics | None = None
+        metrics: Metrics | None = None,
     ):
         """
         Initialize AI deduplicator.
@@ -29,7 +30,7 @@ class AIDeduplicator:
             model: Claude model to use (default: Haiku 3.5 - fast and cheap)
             metrics: Optional metrics tracking object
         """
-        self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY is required for AI deduplication")
 
@@ -38,9 +39,7 @@ class AIDeduplicator:
         self.metrics = metrics
 
     def deduplicate_group(
-        self,
-        findings: list[Finding],
-        proximity_threshold: int = 10
+        self, findings: list[Finding], proximity_threshold: int = 10
     ) -> list[Finding]:
         """
         Use AI to identify and merge duplicate findings within a group.
@@ -57,21 +56,22 @@ class AIDeduplicator:
 
         # Sort by line number
         sorted_findings = sorted(
-            findings,
-            key=lambda f: f.line_number if f.line_number is not None else 0
+            findings, key=lambda f: f.line_number if f.line_number is not None else 0
         )
 
         # Build prompt for AI to identify duplicates
         findings_json = []
         for i, finding in enumerate(sorted_findings):
-            findings_json.append({
-                "id": i,
-                "line": finding.line_number,
-                "severity": finding.severity.value,
-                "message": finding.message,
-                "tool": finding.tool,
-                "aspect": finding.aspect
-            })
+            findings_json.append(
+                {
+                    "id": i,
+                    "line": finding.line_number,
+                    "severity": finding.severity.value,
+                    "message": finding.message,
+                    "tool": finding.tool,
+                    "aspect": finding.aspect,
+                }
+            )
 
         prompt = f"""You are analyzing code review findings to identify duplicates.
 
@@ -106,33 +106,33 @@ Only group findings that are clearly about the same issue. When in doubt, keep t
                 model=self.model,
                 max_tokens=1000,
                 temperature=0.0,  # Deterministic for consistency
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             # Extract text from response
             first_block = response.content[0]
-            response_text = first_block.text if hasattr(first_block, 'text') else str(first_block)
+            response_text = first_block.text if hasattr(first_block, "text") else str(first_block)
 
             # Parse JSON response
             # Remove markdown code fences if present
             response_text = response_text.strip()
-            if response_text.startswith('```json'):
+            if response_text.startswith("```json"):
                 response_text = response_text[7:]
-            elif response_text.startswith('```'):
+            elif response_text.startswith("```"):
                 response_text = response_text[3:]
-            if response_text.endswith('```'):
+            if response_text.endswith("```"):
                 response_text = response_text[:-3]
 
             result = json.loads(response_text.strip())
-            duplicate_groups = result.get('duplicate_groups', [])
+            duplicate_groups = result.get("duplicate_groups", [])
 
             # Track usage
             if self.metrics:
                 usage = response.usage
                 self.metrics.add_tokens(
-                    getattr(usage, 'input_tokens', 0),
-                    getattr(usage, 'output_tokens', 0),
-                    getattr(usage, 'cache_read_input_tokens', 0)
+                    getattr(usage, "input_tokens", 0),
+                    getattr(usage, "output_tokens", 0),
+                    getattr(usage, "cache_read_input_tokens", 0),
                 )
 
             # Merge duplicate groups
@@ -184,7 +184,13 @@ Only group findings that are clearly about the same issue. When in doubt, keep t
             Merged finding
         """
         # Sort by severity (most severe first)
-        severity_order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
+        severity_order = [
+            Severity.CRITICAL,
+            Severity.HIGH,
+            Severity.MEDIUM,
+            Severity.LOW,
+            Severity.INFO,
+        ]
         sorted_findings = sorted(findings, key=lambda f: severity_order.index(f.severity))
 
         # Use the most severe finding as base
@@ -226,5 +232,5 @@ Only group findings that are clearly about the same issue. When in doubt, keep t
             tool=combined_tool,
             rule_id=combined_rule_id,
             code_snippet=base.code_snippet,
-            aspect=combined_aspect
+            aspect=combined_aspect,
         )

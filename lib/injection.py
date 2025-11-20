@@ -1,6 +1,7 @@
 """
 Injection System - Inject company and project-level rules into prompts.
 """
+
 from typing import Any
 
 from .models import PRContext
@@ -19,10 +20,7 @@ class InjectionSystem:
         self.config = config or {}
 
     def inject_all(
-        self,
-        base_prompt: str,
-        pr_context: PRContext,
-        shared_context: dict[str, Any] | None = None
+        self, base_prompt: str, pr_context: PRContext, shared_context: dict[str, Any] | None = None
     ) -> str:
         """
         Apply all injections to base prompt.
@@ -38,32 +36,32 @@ class InjectionSystem:
         prompt = base_prompt
 
         # 1. Inject company policies
-        if '{COMPANY_POLICIES}' in prompt:
+        if "{COMPANY_POLICIES}" in prompt:
             policies = self._get_company_policies()
-            prompt = prompt.replace('{COMPANY_POLICIES}', policies)
+            prompt = prompt.replace("{COMPANY_POLICIES}", policies)
 
         # 2. Inject project context
-        if '{PROJECT_CONTEXT}' in prompt:
+        if "{PROJECT_CONTEXT}" in prompt:
             context = self._format_project_context()
-            prompt = prompt.replace('{PROJECT_CONTEXT}', context)
+            prompt = prompt.replace("{PROJECT_CONTEXT}", context)
 
         # 3. Inject project constraints
-        if '{PROJECT_CONSTRAINTS}' in prompt:
+        if "{PROJECT_CONSTRAINTS}" in prompt:
             constraints = self._format_project_constraints()
-            prompt = prompt.replace('{PROJECT_CONSTRAINTS}', constraints)
+            prompt = prompt.replace("{PROJECT_CONSTRAINTS}", constraints)
 
         # 4. Inject custom rules
-        if '{CUSTOM_RULES}' in prompt:
+        if "{CUSTOM_RULES}" in prompt:
             rules = self._format_custom_rules()
-            prompt = prompt.replace('{CUSTOM_RULES}', rules)
+            prompt = prompt.replace("{CUSTOM_RULES}", rules)
 
         # 5. Inject PR content
         prompt = self._inject_pr_content(prompt, pr_context)
 
         # 6. Inject shared context from previous reviews
-        if shared_context and '{SHARED_CONTEXT}' in prompt:
+        if shared_context and "{SHARED_CONTEXT}" in prompt:
             context_text = self._format_shared_context(shared_context)
-            prompt = prompt.replace('{SHARED_CONTEXT}', context_text)
+            prompt = prompt.replace("{SHARED_CONTEXT}", context_text)
 
         return prompt
 
@@ -74,7 +72,7 @@ class InjectionSystem:
         Returns:
             Formatted company policies text
         """
-        company_policies = self.config.get('company_policies', {})
+        company_policies = self.config.get("company_policies", {})
 
         if not company_policies:
             return "No company-specific policies configured."
@@ -82,32 +80,32 @@ class InjectionSystem:
         sections = []
 
         # Coding standards
-        if 'coding_standards' in company_policies:
+        if "coding_standards" in company_policies:
             sections.append("### Coding Standards\n")
-            for lang, standards in company_policies['coding_standards'].items():
+            for lang, standards in company_policies["coding_standards"].items():
                 sections.append(f"**{lang.upper()}:**")
                 for standard in standards:
                     sections.append(f"- {standard}")
                 sections.append("")
 
         # Security requirements
-        if 'security_requirements' in company_policies:
+        if "security_requirements" in company_policies:
             sections.append("### Security Requirements\n")
-            for req in company_policies['security_requirements']:
+            for req in company_policies["security_requirements"]:
                 sections.append(f"- {req}")
             sections.append("")
 
         # Architectural rules
-        if 'architectural_rules' in company_policies:
+        if "architectural_rules" in company_policies:
             sections.append("### Architectural Rules\n")
-            for rule in company_policies['architectural_rules']:
+            for rule in company_policies["architectural_rules"]:
                 sections.append(f"- {rule}")
             sections.append("")
 
         # Documentation requirements
-        if 'documentation_requirements' in company_policies:
+        if "documentation_requirements" in company_policies:
             sections.append("### Documentation Requirements\n")
-            for req in company_policies['documentation_requirements']:
+            for req in company_policies["documentation_requirements"]:
                 sections.append(f"- {req}")
             sections.append("")
 
@@ -122,33 +120,33 @@ class InjectionSystem:
 
     def _format_project_context(self) -> str:
         """Format project context information."""
-        project_context = self.config.get('project_context', {})
+        project_context = self.config.get("project_context", {})
 
         if not project_context:
             return "No project context configured."
 
         lines = ["## Project Context\n"]
 
-        if 'name' in project_context:
+        if "name" in project_context:
             lines.append(f"**Project Name:** {project_context['name']}")
 
-        if 'architecture' in project_context:
+        if "architecture" in project_context:
             lines.append(f"**Architecture:** {project_context['architecture']}")
 
-        if 'critical_paths' in project_context:
-            paths = project_context['critical_paths']
+        if "critical_paths" in project_context:
+            paths = project_context["critical_paths"]
             lines.append(f"\n**Critical Paths:** {', '.join(paths)}")
             lines.append("\n⚠️ Changes in critical paths require extra scrutiny.")
 
-        if 'technology_stack' in project_context:
-            stack = project_context['technology_stack']
+        if "technology_stack" in project_context:
+            stack = project_context["technology_stack"]
             lines.append(f"\n**Tech Stack:** {', '.join(stack)}")
 
         return "\n".join(lines) + "\n"
 
     def _format_project_constraints(self) -> str:
         """Format project-specific constraints."""
-        constraints = self.config.get('project_constraints', [])
+        constraints = self.config.get("project_constraints", [])
 
         if not constraints:
             return "No project-specific constraints configured."
@@ -163,7 +161,7 @@ class InjectionSystem:
 
     def _format_custom_rules(self) -> str:
         """Format custom pattern-based rules."""
-        custom_rules = self.config.get('custom_rules', [])
+        custom_rules = self.config.get("custom_rules", [])
 
         if not custom_rules:
             return ""
@@ -172,9 +170,9 @@ class InjectionSystem:
         lines.append("Check for these project-specific patterns:\n")
 
         for rule in custom_rules:
-            pattern = rule.get('pattern', '')
-            message = rule.get('message', '')
-            severity = rule.get('severity', 'medium')
+            pattern = rule.get("pattern", "")
+            message = rule.get("message", "")
+            severity = rule.get("severity", "medium")
 
             lines.append(f"\n**Pattern:** `{pattern}`")
             lines.append(f"**Severity:** {severity}")
@@ -195,40 +193,40 @@ class InjectionSystem:
         """
         # Replace PR metadata
         replacements = {
-            '{PR_NUMBER}': str(pr_context.pr_number),
-            '{PR_TITLE}': pr_context.title,
-            '{PR_DESCRIPTION}': pr_context.description or "No description provided",
-            '{PR_AUTHOR}': pr_context.author,
-            '{BASE_BRANCH}': pr_context.base_branch,
-            '{HEAD_BRANCH}': pr_context.head_branch,
+            "{PR_NUMBER}": str(pr_context.pr_number),
+            "{PR_TITLE}": pr_context.title,
+            "{PR_DESCRIPTION}": pr_context.description or "No description provided",
+            "{PR_AUTHOR}": pr_context.author,
+            "{BASE_BRANCH}": pr_context.base_branch,
+            "{HEAD_BRANCH}": pr_context.head_branch,
         }
 
         for placeholder, value in replacements.items():
             prompt = prompt.replace(placeholder, value)
 
         # Replace changed files
-        if '{CHANGED_FILES}' in prompt:
+        if "{CHANGED_FILES}" in prompt:
             files_text = self._format_changed_files(pr_context)
-            prompt = prompt.replace('{CHANGED_FILES}', files_text)
+            prompt = prompt.replace("{CHANGED_FILES}", files_text)
 
         # Replace diff
-        if '{PR_DIFF}' in prompt:
+        if "{PR_DIFF}" in prompt:
             # Limit diff size to prevent token overflow
             diff = pr_context.diff
             max_diff_size = 50000  # characters
             if len(diff) > max_diff_size:
                 diff = diff[:max_diff_size] + "\n\n... (diff truncated for size)"
-            prompt = prompt.replace('{PR_DIFF}', diff)
+            prompt = prompt.replace("{PR_DIFF}", diff)
 
         # Replace detected languages
-        if '{LANGUAGES}' in prompt:
-            langs = ', '.join(pr_context.detected_languages) or 'Not detected'
-            prompt = prompt.replace('{LANGUAGES}', langs)
+        if "{LANGUAGES}" in prompt:
+            langs = ", ".join(pr_context.detected_languages) or "Not detected"
+            prompt = prompt.replace("{LANGUAGES}", langs)
 
         # Replace change types
-        if '{CHANGE_TYPES}' in prompt:
-            types = ', '.join([ct.value for ct in pr_context.change_types])
-            prompt = prompt.replace('{CHANGE_TYPES}', types)
+        if "{CHANGE_TYPES}" in prompt:
+            types = ", ".join([ct.value for ct in pr_context.change_types])
+            prompt = prompt.replace("{CHANGE_TYPES}", types)
 
         return prompt
 
@@ -237,12 +235,9 @@ class InjectionSystem:
         lines = ["### Changed Files\n"]
 
         for file_change in pr_context.changed_files:
-            status_emoji = {
-                'added': '✨',
-                'modified': '📝',
-                'deleted': '🗑️',
-                'renamed': '🔄'
-            }.get(file_change.status, '•')
+            status_emoji = {"added": "✨", "modified": "📝", "deleted": "🗑️", "renamed": "🔄"}.get(
+                file_change.status, "•"
+            )
 
             lines.append(
                 f"{status_emoji} `{file_change.path}` "
@@ -267,7 +262,7 @@ class InjectionSystem:
         lines = ["## Context from Previous Reviews\n"]
 
         for aspect_name, context in shared_context.items():
-            findings = context.get('findings', [])
+            findings = context.get("findings", [])
             if findings:
                 lines.append(f"\n### {aspect_name}")
                 lines.append(f"Found {len(findings)} issues:")
@@ -291,17 +286,13 @@ class InjectionSystem:
         """
         policies_text = self._format_policies(policies)
 
-        if '{COMPANY_POLICIES}' in prompt:
-            return prompt.replace('{COMPANY_POLICIES}', policies_text)
+        if "{COMPANY_POLICIES}" in prompt:
+            return prompt.replace("{COMPANY_POLICIES}", policies_text)
 
         # If no placeholder, append to end
         return prompt + "\n\n" + policies_text
 
-    def inject_project_constraints(
-        self,
-        prompt: str,
-        constraints: list[str]
-    ) -> str:
+    def inject_project_constraints(self, prompt: str, constraints: list[str]) -> str:
         """
         Inject project constraints into prompt.
 
@@ -315,8 +306,8 @@ class InjectionSystem:
         constraints_text = "\n".join(f"- {c}" for c in constraints)
         constraint_section = f"\n## Project Constraints\n{constraints_text}\n"
 
-        if '{PROJECT_CONSTRAINTS}' in prompt:
-            return prompt.replace('{PROJECT_CONSTRAINTS}', constraint_section)
+        if "{PROJECT_CONSTRAINTS}" in prompt:
+            return prompt.replace("{PROJECT_CONSTRAINTS}", constraint_section)
 
         return prompt + "\n" + constraint_section
 
@@ -325,7 +316,7 @@ class InjectionSystem:
         lines = ["## Company Policies\n"]
 
         for category, items in policies.items():
-            category_title = category.replace('_', ' ').title()
+            category_title = category.replace("_", " ").title()
             lines.append(f"\n### {category_title}")
 
             if isinstance(items, list):
