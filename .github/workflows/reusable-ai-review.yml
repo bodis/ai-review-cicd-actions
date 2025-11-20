@@ -130,10 +130,10 @@ jobs:
             ${{ steps.config.outputs.company_config_arg }}
 
       - name: Upload review results
-        uses: actions/upload-artifact@v3
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: ai-review-results
+          name: review-results-pr-${{ github.event.pull_request.number }}
           path: review-results.json
           retention-days: 30
 
