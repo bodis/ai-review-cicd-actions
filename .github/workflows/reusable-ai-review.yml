@@ -76,7 +76,7 @@ jobs:
 
       - name: Install AI Review package
         run: |
-          uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
+          uv pip install --system "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -84,7 +84,7 @@ jobs:
       - name: Install Python analysis tools
         if: inputs.enable-python-analysis
         run: |
-          uv pip install ruff pylint bandit mypy
+          uv pip install --system ruff pylint bandit mypy
 
       - name: Set up Node.js
         if: inputs.enable-js-analysis && hashFiles('package.json') != ''
@@ -132,8 +132,8 @@ jobs:
             ARGS="$ARGS --company-config ${{ inputs.company-config-url }}"
           fi
 
-          # Run review
-          uv run ai-review $ARGS --output review-results.json
+          # Run review (ai-review is installed system-wide)
+          ai-review $ARGS --output review-results.json
 
       - name: Upload review results
         if: always()
