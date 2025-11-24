@@ -287,6 +287,26 @@ etc."""
                     improvements_text += f"- {f.message[:80]}...\n"
                 improvements_section = f"\n{improvements_text}"
 
+        # Build aspect status with success/failure indicators
+        aspect_status_lines = []
+        for r in results.review_results:
+            status = "✅" if r.success else "❌"
+            aspect_status_lines.append(
+                f"- {status} {r.aspect_name}: {len(r.findings)} findings ({r.execution_time:.1f}s)"
+            )
+        aspect_status_text = "\n".join(aspect_status_lines)
+
+        # Count findings by tool (for static analyzers)
+        tool_counts: dict[str, int] = {}
+        for finding in results.all_findings:
+            if finding.tool:
+                tool_counts[finding.tool] = tool_counts.get(finding.tool, 0) + 1
+
+        tool_breakdown = ""
+        if tool_counts:
+            tool_items = [f"{tool}: {count}" for tool, count in sorted(tool_counts.items())]
+            tool_breakdown = f"\n**Findings by Tool**: {', '.join(tool_items)}"
+
         prompt = f"""Generate an engaging GitHub Pull Request summary comment for code review results.
 
 **Review Status**: {"❌ BLOCKED" if results.should_block else "✅ APPROVED"}
@@ -299,13 +319,13 @@ etc."""
 - 🟡 Medium: {medium_count}
 - ⏱️ Execution time: {results.total_execution_time:.1f}s
 - 📁 Files changed: {len(results.pr_context.changed_files)}
-- 🔤 Languages: {", ".join(results.pr_context.detected_languages)}
+- 🔤 Languages: {", ".join(results.pr_context.detected_languages)}{tool_breakdown}
 
 **Top Issues**:
 {top_issues_text}
 
-**Review Aspects Executed**:
-{", ".join([r.aspect_name for r in results.review_results])}{improvements_section}
+**Review Aspects** (✅ passed, ❌ failed):
+{aspect_status_text}{improvements_section}
 
 Create a professional, encouraging summary comment with:
 
