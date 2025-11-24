@@ -74,9 +74,14 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ inputs.python-version }}
 
+      - name: Create review tools environment
+        run: |
+          uv venv .review-tools --python ${{ inputs.python-version }}
+          echo "$PWD/.review-tools/bin" >> $GITHUB_PATH
+
       - name: Install AI Review package
         run: |
-          uv pip install --system "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
+          uv pip install --python .review-tools/bin/python "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -84,7 +89,7 @@ jobs:
       - name: Install Python analysis tools
         if: inputs.enable-python-analysis
         run: |
-          uv pip install --system ruff pylint bandit mypy
+          uv pip install --python .review-tools/bin/python ruff pylint bandit mypy
 
       - name: Set up Node.js
         if: inputs.enable-js-analysis && hashFiles('package.json') != ''
@@ -132,7 +137,7 @@ jobs:
             ARGS="$ARGS --company-config ${{ inputs.company-config-url }}"
           fi
 
-          # Run review (ai-review is installed system-wide)
+          # Run review (ai-review is in .review-tools venv, added to PATH)
           ai-review $ARGS --output review-results.json
 
       - name: Upload review results

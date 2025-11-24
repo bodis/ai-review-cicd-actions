@@ -95,6 +95,30 @@ Three-level precedence:
 
 Tools (Ruff, Pylint, etc.) read config from `pyproject.toml`.
 
+### 7. Claude Code CLI Integration
+
+**The Python package spawns Claude Code CLI as a subprocess for AI reviews.**
+
+```
+ai-review (Python CLI)
+    │
+    └─→ subprocess.run(["claude", ...])  # ai_review/ai_review.py:106-122
+            │
+            └─→ Claude Code CLI (Node.js)
+                    │
+                    └─→ Anthropic API
+```
+
+**CI/CD implications:**
+- Claude Code CLI must be installed: `npm install -g @anthropic-ai/claude-code`
+- The `claude` command must be in PATH when `ai-review` runs
+- `ANTHROPIC_API_KEY` env var must be set (passed to subprocess)
+
+**Why this architecture:**
+- Claude Code CLI provides robust Claude interaction with retries, streaming, tool use
+- Python package handles orchestration, static analysis, platform integration
+- Separation allows each component to be updated independently
+
 ---
 
 ## Project Structure
@@ -183,8 +207,11 @@ uv run ai-review        # Run CLI
 **Key Dependencies**:
 - `PyGithub` - GitHub API
 - `python-gitlab` - GitLab API
-- `anthropic` - Claude API
+- `anthropic` - Claude API (for deduplication only)
 - Static analysis tools (Ruff, Pylint, Bandit, mypy)
+
+**External Runtime Dependency**:
+- `@anthropic-ai/claude-code` (Node.js) - Claude Code CLI, spawned as subprocess for AI reviews
 
 ---
 
