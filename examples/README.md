@@ -1,122 +1,99 @@
 # Integration Examples
 
-This directory contains complete examples for integrating the AI code review system into your projects. There are **two integration patterns**, each with different use cases and tradeoffs.
+This directory contains complete examples for integrating the AI code review system into your projects.
 
 ## 📁 Directory Structure
 
 ```
 examples/
 ├── README.md                    # This file
-├── local-pattern/               # Copy review system into your project
-│   ├── python-workflow.yml     # Python project example
-│   ├── python-config.yml
-│   ├── java-workflow.yml       # Java/Spring Boot example
-│   └── java-config.yml
-├── reusable-pattern/            # Reference centralized review system
-│   ├── python-workflow.yml     # Python project example
-│   ├── java-workflow.yml       # Java/Spring Boot example
-│   └── config-example.yml
+├── local-pattern/               # Configuration examples
+│   ├── python-config.yml       # Python project config
+│   └── java-config.yml         # Java/Spring Boot config
+├── reusable-pattern/            # Workflow examples
+│   ├── python-workflow.yml     # Python project workflow
+│   ├── java-workflow.yml       # Java/Spring Boot workflow
+│   └── config-example.yml      # Generic config
 └── company-policies/            # Company-wide policy examples
     └── example-policies.yml
 ```
 
 ---
 
-## 🎯 Two Integration Patterns
+## 🎯 Integration Patterns
 
-### 1. Local Pattern (`local-pattern/`)
+### 1. Package Installation (Recommended)
 
-**Copy the review system code into your project**
+**Install the review system as a pip package**
 
 ```
 Your Project Repo
-├── .github/workflows/ai-review.yml  ← Workflow runs locally
-├── lib/                              ← Review system code (copied)
-├── prompts/                          ← Review prompts (copied)
-├── main.py                           ← Review entry point (copied)
+├── .github/workflows/ai-review.yml  ← Installs package and runs
+├── .github/ai-review-config.yml     ← Optional: project config
 └── your-code/
 ```
 
 **When to use**:
-- ✅ Single project or small team
-- ✅ Want full control over review logic
-- ✅ Can customize review code per project
-- ✅ Don't mind code duplication
-
-**Pros**:
-- Full control and customization
-- Can modify review logic
-- No external dependencies
-- Simpler to understand
-
-**Cons**:
-- Must update review code manually in each repo
-- Code duplication across projects
-- Harder to maintain consistency
+- ✅ Any project size
+- ✅ Want version pinning
+- ✅ Easy updates via version tags
+- ✅ Works for both GitHub and GitLab
 
 **Setup**:
 ```bash
-# 1. Copy review system to your project
-cp -r /path/to/ai-review-cicd-actions/{lib,prompts,main.py,pyproject.toml} .
+# 1. Create workflow file
+# See examples/reusable-pattern/python-workflow.yml
 
-# 2. Copy workflow
-cp examples/local-pattern/python-workflow.yml .github/workflows/ai-review.yml
-
-# 3. Copy config
+# 2. Add config (optional, uses sensible defaults)
 cp examples/local-pattern/python-config.yml .github/ai-review-config.yml
 
-# 4. Add secret: ANTHROPIC_API_KEY
+# 3. Add secret: ANTHROPIC_API_KEY
+```
+
+**Workflow snippet**:
+```yaml
+- name: Install AI Review package
+  run: |
+    uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@v1.0.0"
+
+- name: Run AI Code Review
+  run: uv run ai-review --repo ${{ github.repository }} --pr ${{ github.event.pull_request.number }}
 ```
 
 ---
 
-### 2. Reusable Pattern (`reusable-pattern/`)
+### 2. Reusable Workflow (GitHub only)
 
-**Reference a centralized review system (no code copy needed)**
+**Use the pre-built reusable workflow**
 
 ```
 Your Project Repo
-├── .github/workflows/ai-review.yml  ← Calls external workflow
+├── .github/workflows/ai-review.yml  ← Calls reusable workflow (10 lines!)
 └── your-code/
-
-Centralized Review System Repo (separate)
-├── .github/workflows/reusable-ai-review.yml  ← Reusable workflow
-├── lib/                                       ← Review system code
-├── prompts/
-└── main.py
 ```
 
 **When to use**:
-- ✅ Multiple projects (10+ repos)
-- ✅ Want centralized maintenance
-- ✅ Need consistent review standards
-- ✅ Have DevOps/platform team
-
-**Pros**:
-- Zero code duplication
-- Single source of truth
-- Easy to update all projects at once
-- Enforces consistency
-
-**Cons**:
-- External dependency on review system repo
-- Less flexibility per project
-- Requires understanding reusable workflows
-- Can't easily customize per repo
+- ✅ GitHub-only projects
+- ✅ Minimal setup required
+- ✅ Want automatic updates
 
 **Setup**:
-```bash
-# 1. Copy workflow (just 20 lines!)
-cp examples/reusable-pattern/python-workflow.yml .github/workflows/ai-review.yml
+```yaml
+# .github/workflows/ai-review.yml
+name: AI Code Review
 
-# 2. Edit to point to YOUR review system repo
-# Change: your-org/ai-review-cicd-actions
-# To: your-actual-org/actual-repo-name
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
-# 3. Add config (optional, can use defaults)
-cp examples/reusable-pattern/config-example.yml .github/ai-review-config.yml
-
-# 4. Add secret: ANTHROPIC_API_KEY
+jobs:
+  ai-review:
+    uses: bodis/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
+    with:
+      python-version: '3.12'
+      package-version: 'main'  # Or pin: 'v1.0.0'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
 ---
@@ -204,53 +181,61 @@ This allows centralized enforcement of organizational standards across all proje
 
 ## 🚀 Quick Start Guides
 
-### For Single Project (Recommended: Local Pattern)
+### For Any Project (Package Installation)
 
 ```bash
-# 1. Choose your language
-LANG="python"  # or "java"
+# 1. Create workflow file (.github/workflows/ai-review.yml)
+cat > .github/workflows/ai-review.yml << 'EOF'
+name: AI Code Review
 
-# 2. Copy the review system
-git clone https://github.com/your-org/ai-review-cicd-actions review-system
-cp -r review-system/{lib,prompts,main.py,pyproject.toml,uv.lock} .
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
-# 3. Copy workflow and config
-cp review-system/examples/local-pattern/${LANG}-workflow.yml .github/workflows/ai-review.yml
-cp review-system/examples/local-pattern/${LANG}-config.yml .github/ai-review-config.yml
+jobs:
+  ai-review:
+    uses: bodis/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
+    with:
+      python-version: '3.12'
+      package-version: 'main'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+EOF
 
-# 4. Clean up
-rm -rf review-system
-
-# 5. Add secret on GitHub
+# 2. Add secret on GitHub
 # Settings → Secrets → Actions → New secret
 # Name: ANTHROPIC_API_KEY
 # Value: sk-ant-...
 
-# 6. Create a PR and watch it work!
+# 3. Create a PR and watch it work!
 ```
 
-### For Organization (Recommended: Reusable Pattern)
+### For GitLab Projects
 
 ```bash
-# 1. Set up centralized review system repo (one time)
-# - Fork or clone ai-review-cicd-actions
-# - Deploy to your-org/code-review-system
+# 1. Create .gitlab-ci.yml
+cat > .gitlab-ci.yml << 'EOF'
+ai-review:
+  stage: test
+  image: python:3.12-slim
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  before_script:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
+    - apt-get update && apt-get install -y nodejs npm git
+    - npm install -g @anthropic-ai/claude-code
+    - uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@main"
+  script:
+    - uv run ai-review --repo "$CI_PROJECT_ID" --pr "$CI_MERGE_REQUEST_IID"
+  variables:
+    ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
+    CLAUDE_CODE_HEADLESS: '1'
+EOF
 
-# 2. For each project:
-LANG="python"  # or "java"
+# 2. Add ANTHROPIC_API_KEY variable in GitLab CI/CD settings
 
-# Copy minimal workflow
-cp examples/reusable-pattern/${LANG}-workflow.yml .github/workflows/ai-review.yml
-
-# Edit workflow to reference YOUR repo
-sed -i 's|your-org/ai-review-cicd-actions|your-org/code-review-system|' .github/workflows/ai-review.yml
-
-# Optional: Add project config
-cp examples/reusable-pattern/config-example.yml .github/ai-review-config.yml
-
-# 3. Add secret: ANTHROPIC_API_KEY
-
-# 4. Done! All projects now use centralized review system
+# 3. Create an MR and watch it work!
 ```
 
 ---
@@ -332,39 +317,39 @@ review_aspects:
 
 ## 📊 Pattern Comparison
 
-| Feature | Local Pattern | Reusable Pattern |
-|---------|--------------|------------------|
-| **Setup complexity** | Medium | Low |
-| **Code duplication** | High (copy all code) | None (reference only) |
-| **Customization** | Full (edit anything) | Limited (config only) |
-| **Maintenance** | Per-repo updates | Central updates |
-| **Best for** | 1-10 projects | 10+ projects |
-| **Team size** | Small teams | Organizations |
-| **Consistency** | Manual effort | Enforced |
+| Feature | Package Install | Reusable Workflow |
+|---------|-----------------|-------------------|
+| **Setup complexity** | Low | Very Low |
+| **Code duplication** | None (pip install) | None (workflow reference) |
+| **Customization** | Full (config only) | Limited (inputs only) |
+| **Maintenance** | Version pinning | Auto-updates |
+| **Best for** | All projects | GitHub-only |
+| **Platform support** | GitHub + GitLab | GitHub only |
+| **Version control** | Git tags (v1.0.0) | Branch reference |
 
 ---
 
 ## ❓ FAQ
 
 **Q: Which pattern should I use?**
-A: Local pattern for single/few projects. Reusable pattern for organizations with 10+ repos.
+A: Package installation for all projects (works on GitHub + GitLab). Reusable workflow for GitHub-only with minimal setup.
 
 **Q: Can I switch patterns later?**
 A: Yes! The config format is the same. Just change the workflow file.
 
-**Q: Do I need both patterns?**
-A: No, choose one. We show both for different use cases.
+**Q: How do I pin to a specific version?**
+A: Use git tags: `git+https://github.com/bodis/ai-review-cicd-actions.git@v1.0.0`
 
 **Q: What about JavaScript/TypeScript?**
-A: Python examples work similarly. See [docs/JAVASCRIPT_INTEGRATION.md](../docs/JAVASCRIPT_INTEGRATION.md).
-
-**Q: Can I mix patterns?**
-A: Yes, some projects can use local, others reusable. Depends on needs.
+A: Works automatically! The system detects languages. See [docs/JAVASCRIPT_INTEGRATION.md](../docs/JAVASCRIPT_INTEGRATION.md).
 
 **Q: How do I update the review system?**
 A:
-- **Local**: Git pull + copy files to each repo
-- **Reusable**: Update central repo once, all projects get update
+- **Package install**: Change version tag in workflow
+- **Reusable workflow**: Change `@main` to `@v2.0.0` or update automatically
+
+**Q: Do I need to copy any files?**
+A: No! Prompts and config are bundled in the package. Only create `.github/ai-review-config.yml` if you want to customize.
 
 ---
 

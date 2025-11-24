@@ -99,6 +99,25 @@ Go to your repository: `Settings → Secrets and variables → Actions → New r
 
 **2. Create Workflow File** (`.github/workflows/ai-code-review.yml`):
 
+**Option A: Using the reusable workflow (Recommended)**:
+```yaml
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    uses: bodis/ai-review-cicd-actions/.github/workflows/reusable-ai-review.yml@main
+    with:
+      python-version: '3.12'
+      package-version: 'main'  # Or pin to a tag like 'v1.0.0'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Option B: Direct installation (More control)**:
 ```yaml
 name: AI Code Review
 
@@ -128,20 +147,24 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.12
 
-      - name: Install dependencies
-        run: uv sync
+      - name: Install AI Review package
+        run: |
+          uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@main"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
 
       - name: Run AI Code Review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_HEADLESS: '1'
         run: |
-          uv run python main.py \
+          uv run ai-review \
             --repo ${{ github.repository }} \
             --pr ${{ github.event.pull_request.number }} \
-            --config .github/ai-review-config.yml \
             --output review-results.json
 ```
 

@@ -347,17 +347,21 @@ Please provide a corrected response with valid JSON in this exact format:
         Returns:
             Complete prompt string
         """
-        # Load base prompt template
+        # Load base prompt template (with fallback to bundled prompts)
         prompt_file = aspect.get("prompt_file")
         if not prompt_file:
             raise ValueError(f"No prompt_file specified for aspect: {aspect['name']}")
 
-        prompt_path = self.project_root / prompt_file
-        if not prompt_path.exists():
-            raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
+        # Use resource loader to find prompt (project override → bundled)
+        from .resources import get_prompt
 
-        with open(prompt_path, encoding="utf-8") as f:
-            base_prompt = f.read()
+        try:
+            base_prompt = get_prompt(prompt_file, self.project_root)
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Prompt file not found: {prompt_file}\n"
+                f"Checked: project/prompts/, .github/prompts/, .gitlab/prompts/, and bundled prompts."
+            ) from e
 
         # Apply injections
         prompt = self.injection_system.inject_all(base_prompt, pr_context, shared_context)

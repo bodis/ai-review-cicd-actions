@@ -8,15 +8,15 @@ The codebase now supports **both GitHub and GitLab** through a clean abstraction
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     main.py                                  │
-│                 (Platform-agnostic)                          │
+│                     ai_review/cli.py                        │
+│                 (Platform-agnostic)                         │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ├── Auto-detect platform (GitHub/GitLab)
                       │
                       ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              lib/platform/factory.py                         │
+│              ai_review/platform/factory.py                  │
 │         (Creates appropriate platform instance)             │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -36,9 +36,9 @@ The codebase now supports **both GitHub and GitLab** through a clean abstraction
                       │
                       ↓
 ┌─────────────────────────────────────────────────────────────┐
-│            lib/platform/base.py                              │
-│        (Abstract Interface - CodeReviewPlatform)             │
-│                                                              │
+│            ai_review/platform/base.py                       │
+│        (Abstract Interface - CodeReviewPlatform)            │
+│                                                             │
 │  • get_context(project_id, mr_number) -> PRContext          │
 │  • post_summary_comment(project_id, mr_number, comment)     │
 │  • post_inline_comments(project_id, mr_number, findings)    │
@@ -47,14 +47,14 @@ The codebase now supports **both GitHub and GitLab** through a clean abstraction
                       │
                       ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              ReviewOrchestrator                              │
-│         (Receives PRContext, platform-agnostic)              │
+│              ReviewOrchestrator                             │
+│         (Receives PRContext, platform-agnostic)             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Components
 
-### 1. Abstract Interface (`lib/platform/base.py`)
+### 1. Abstract Interface (`ai_review/platform/base.py`)
 
 Defines the contract that all platforms must implement:
 
@@ -81,19 +81,19 @@ class CodeReviewPlatform(ABC):
 
 ### 2. Platform Implementations
 
-**GitHub** (`lib/platform/github_platform.py`):
+**GitHub** (`ai_review/platform/github_platform.py`):
 - Uses `PyGithub` library
 - Implements PR fetching with `get_repo().get_pull()`
 - Posts issue comments and review comments
 - Updates commit status with `create_status()`
 
-**GitLab** (`lib/platform/gitlab_platform.py`):
+**GitLab** (`ai_review/platform/gitlab_platform.py`):
 - Uses `python-gitlab` library
 - Implements MR fetching with `projects.get().mergerequests.get()`
 - Posts notes and discussions
 - Updates commit status with `commit.statuses.create()`
 
-### 3. Factory Pattern (`lib/platform/factory.py`)
+### 3. Factory Pattern (`ai_review/platform/factory.py`)
 
 Auto-detects platform and creates appropriate instance:
 
@@ -112,7 +112,7 @@ def create_platform(platform_type: PlatformType | None, token: str | None):
         return GitLabPlatform(token)
 ```
 
-### 4. Platform Reporter (`lib/platform/base.PlatformReporter`)
+### 4. Platform Reporter (`ai_review/platform/base.PlatformReporter`)
 
 Abstract reporter class that handles:
 - AI-generated summary comments
@@ -128,17 +128,17 @@ Both `GitHubReporter` and `GitLabReporter` extend this base class.
 
 ```bash
 # Auto-detected when GITHUB_ACTIONS=true
-python main.py --repo owner/repo --pr 123
+python ai_review/cli.py --repo owner/repo --pr 123
 ```
 
 ### GitLab (New!)
 
 ```bash
 # Auto-detected when GITLAB_CI=true
-python main.py --repo namespace/project --pr 456
+python ai_review/cli.py --repo namespace/project --pr 456
 
 # Or explicitly specify platform
-python main.py --platform gitlab --repo 12345 --pr 456
+python ai_review/cli.py --platform gitlab --repo 12345 --pr 456
 ```
 
 ### Environment Variables
@@ -196,7 +196,7 @@ uv run pytest tests/ -v
 
 ## Benefits of This Abstraction
 
-1. **Clean Separation**: Platform logic isolated in `lib/platform/`
+1. **Clean Separation**: Platform logic isolated in `ai_review/platform/`
 2. **Easy Extension**: Add new platforms by implementing `CodeReviewPlatform`
 3. **No Code Duplication**: Shared logic in base classes
 4. **Backwards Compatible**: Existing GitHub code still works
@@ -215,20 +215,20 @@ To complete the GitLab integration:
 ## Files Modified
 
 ### New Files
-- `lib/platform/__init__.py` - Package exports
-- `lib/platform/base.py` - Abstract interfaces
-- `lib/platform/factory.py` - Platform detection and creation
-- `lib/platform/github_platform.py` - GitHub implementation
-- `lib/platform/gitlab_platform.py` - GitLab implementation
+- `ai_review/platform/__init__.py` - Package exports
+- `ai_review/platform/base.py` - Abstract interfaces
+- `ai_review/platform/factory.py` - Platform detection and creation
+- `ai_review/platform/github_platform.py` - GitHub implementation
+- `ai_review/platform/gitlab_platform.py` - GitLab implementation
 
 ### Modified Files
-- `main.py` - Uses platform abstraction, auto-detects platform
-- `lib/orchestrator.py` - Added `run_review_pipeline_with_context()`
+- `ai_review/cli.py` - Uses platform abstraction, auto-detects platform
+- `ai_review/orchestrator.py` - Added `run_review_pipeline_with_context()`
 - `pyproject.toml` - Added `python-gitlab` dependency
 
 ### Unchanged Files
-- `lib/pr_context.py` - Kept for backwards compatibility
-- `lib/github_reporter.py` - Kept for backwards compatibility
+- `ai_review/pr_context.py` - Kept for backwards compatibility
+- `ai_review/github_reporter.py` - Kept for backwards compatibility
 - All analyzers, AI review, config, models - No changes needed!
 
 ## Example Usage
@@ -244,7 +244,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run AI Review
-        run: python main.py --repo ${{ github.repository }} --pr ${{ github.event.pull_request.number }}
+        run: python ai_review/cli.py --repo ${{ github.repository }} --pr ${{ github.event.pull_request.number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -270,7 +270,7 @@ ai-review:
 
     # Run review (auto-detects GitLab)
     - |
-      uv run python main.py \
+      uv run python ai_review/cli.py \
         --repo "$CI_PROJECT_PATH" \
         --pr "$CI_MERGE_REQUEST_IID" \
         --project-root "$CI_PROJECT_DIR"

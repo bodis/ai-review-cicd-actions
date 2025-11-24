@@ -230,15 +230,16 @@ When you don't provide a project config file, the system uses **sensible default
 
 Both platforms support two integration patterns:
 
-**📋 Pattern 1: Local/Embedded**
-- Copy review system to your project
-- Full control and customization
-- Best for: Single projects, small teams
-
-**🔗 Pattern 2: Centralized/Reusable**
-- Reference centralized review system
+**📦 Pattern 1: Package Installation (Recommended)**
+- Install as pip package: `uv pip install "ai-code-review @ git+..."`
+- Version pinning with git tags
 - Zero code duplication, easy updates
-- Best for: Organizations, 5+ projects
+- Best for: All projects, CI/CD pipelines
+
+**📋 Pattern 2: Reusable Workflow (GitHub)**
+- Reference centralized workflow
+- Minimal setup, maximum convenience
+- Best for: GitHub-centric organizations
 
 See platform-specific guides for detailed instructions and examples.
 
@@ -503,19 +504,32 @@ For detailed configuration options, see:
 
 ### Installation
 
+**For CI/CD use (install as package):**
+```bash
+# Install with UV (recommended)
+uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@main"
+
+# Or pin to a version
+uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@v1.0.0"
+
+# Run the CLI
+uv run ai-review --help
+```
+
+**For development (clone repository):**
 ```bash
 # Install UV (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone repository
-git clone https://github.com/your-org/ai-review-cicd-actions.git
+git clone https://github.com/bodis/ai-review-cicd-actions.git
 cd ai-review-cicd-actions
 
 # Install Python and all dependencies (dev + prod)
 uv sync
 
 # Verify installation
-uv run python --version
+uv run ai-review --version
 ```
 
 ### Running Tests
@@ -524,27 +538,24 @@ uv run python --version
 # Run all tests
 uv run pytest
 
-# Run with coverage (optional for demo)
-uv run pytest --cov=lib --cov-report=html
+# Run with coverage
+uv run pytest --cov=ai_review --cov-report=html
 
 # Run specific test
-uv run pytest tests/test_orchestrator.py -v
-
-# Run with markers
-uv run pytest -m unit  # Only unit tests
+uv run pytest tests/test_models.py -v
 ```
 
 ### Running Locally
 
 ```bash
-# Run review on a PR
-uv run python main.py \
+# Run review on a PR (requires ANTHROPIC_API_KEY and GITHUB_TOKEN env vars)
+uv run ai-review \
   --repo owner/repo \
   --pr 123 \
   --output results.json
 
 # With custom config
-uv run python main.py \
+uv run ai-review \
   --repo owner/repo \
   --pr 123 \
   --config .github/ai-review-config.yml \

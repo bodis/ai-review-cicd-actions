@@ -84,7 +84,7 @@ jobs:
           CLAUDE_CODE_HEADLESS: '1'  # Disable interactive features
           NO_COLOR: '1'  # Disable ANSI colors
         run: |
-          uv run python main.py \
+          uv run ai-review \
             --repo ${{ github.repository }} \
             --pr ${{ github.event.pull_request.number }} \
             --config .github/ai-review-config.yml \

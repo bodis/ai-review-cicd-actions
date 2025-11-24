@@ -2,7 +2,7 @@
 Tests for data models.
 """
 
-from lib.models import (
+from ai_review.models import (
     AggregatedResults,
     ChangeType,
     FileChange,

@@ -7,17 +7,22 @@ on:
         description: 'Python version to use'
         required: false
         type: string
-        default: '3.11'
+        default: '3.12'
       node-version:
         description: 'Node.js version to use'
         required: false
         type: string
         default: '20'
-      config-file:
-        description: 'Path to project configuration file'
+      package-version:
+        description: 'AI Review package version (git tag, branch, or commit)'
         required: false
         type: string
-        default: '.github/ai-review-config.yml'
+        default: 'main'
+      config-file:
+        description: 'Path to project configuration file (auto-detected if not specified)'
+        required: false
+        type: string
+        default: ''
       company-config-url:
         description: 'URL to company-level configuration'
         required: false
@@ -56,18 +61,10 @@ jobs:
     name: AI Code Review
 
     steps:
-      - name: Checkout review system
-        uses: actions/checkout@v4
-        with:
-          repository: 'bodis/ai-review-cicd-actions'
-          ref: 'main'
-          path: '.ai-review'
-
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          path: 'project'
 
       - name: Install UV
         uses: astral-sh/setup-uv@v3
@@ -77,10 +74,9 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ inputs.python-version }}
 
-      - name: Install review system dependencies
+      - name: Install AI Review package
         run: |
-          cd .ai-review
-          uv sync
+          uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -88,37 +84,32 @@ jobs:
       - name: Install Python analysis tools
         if: inputs.enable-python-analysis
         run: |
-          cd .ai-review
           uv pip install ruff pylint bandit mypy
 
       - name: Set up Node.js
-        if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
+        if: inputs.enable-js-analysis && hashFiles('package.json') != ''
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-version }}
           cache: 'npm'
-          cache-dependency-path: 'project/package-lock.json'
 
-      - name: Install project dependencies
-        if: inputs.enable-js-analysis && hashFiles('project/package.json') != ''
+      - name: Install project JS dependencies
+        if: inputs.enable-js-analysis && hashFiles('package.json') != ''
+        run: npm ci || npm install
+
+      - name: Validate Environment
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          cd project
-          npm ci || npm install
-
-      - name: Prepare configuration
-        id: config
-        run: |
-          CONFIG_ARG=""
-          if [ -f "project/${{ inputs.config-file }}" ]; then
-            CONFIG_ARG="--config project/${{ inputs.config-file }}"
+          if [[ -z "$ANTHROPIC_API_KEY" ]]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set"
+            exit 1
           fi
-          echo "config_arg=$CONFIG_ARG" >> $GITHUB_OUTPUT
-
-          COMPANY_CONFIG_ARG=""
-          if [ -n "${{ inputs.company-config-url }}" ]; then
-            COMPANY_CONFIG_ARG="--company-config ${{ inputs.company-config-url }}"
+          if [[ ! $ANTHROPIC_API_KEY =~ ^sk-ant- ]]; then
+            echo "::error::Invalid ANTHROPIC_API_KEY format"
+            exit 1
           fi
-          echo "company_config_arg=$COMPANY_CONFIG_ARG" >> $GITHUB_OUTPUT
+          echo "Environment validated"
 
       - name: Run AI Code Review
         env:
@@ -128,14 +119,21 @@ jobs:
           CLAUDE_CODE_HEADLESS: '1'
           NO_COLOR: '1'
         run: |
-          cd .ai-review
-          uv run python main.py \
-            --repo ${{ github.repository }} \
-            --pr ${{ github.event.pull_request.number }} \
-            --project-root ../project \
-            --output ../review-results.json \
-            ${{ steps.config.outputs.config_arg }} \
-            ${{ steps.config.outputs.company_config_arg }}
+          # Build command arguments
+          ARGS="--repo ${{ github.repository }} --pr ${{ github.event.pull_request.number }}"
+
+          # Add config file if specified
+          if [ -n "${{ inputs.config-file }}" ] && [ -f "${{ inputs.config-file }}" ]; then
+            ARGS="$ARGS --config ${{ inputs.config-file }}"
+          fi
+
+          # Add company config if specified
+          if [ -n "${{ inputs.company-config-url }}" ]; then
+            ARGS="$ARGS --company-config ${{ inputs.company-config-url }}"
+          fi
+
+          # Run review
+          uv run ai-review $ARGS --output review-results.json
 
       - name: Upload review results
         if: always()
@@ -145,21 +143,11 @@ jobs:
           path: review-results.json
           retention-days: 30
 
+      # Note: ai-review exits with code 1 if blocking, so workflow fails automatically
+      # This step provides additional context in the GitHub UI
       - name: Check review status
-        if: inputs.fail-on-blocking
+        if: failure() && inputs.fail-on-blocking
         run: |
           if [ -f review-results.json ]; then
-            SHOULD_BLOCK=$(python -c "import json; print(json.load(open('review-results.json'))['should_block'])")
-            if [ "$SHOULD_BLOCK" = "True" ]; then
-              REASON=$(python -c "import json; print(json.load(open('review-results.json')).get('blocking_reason', 'Unknown'))")
-              echo "::error::Code review blocked: $REASON"
-              exit 1
-            fi
-          fi
-
-      - name: Post review summary
-        if: always()
-        run: |
-          if [ -f review-results.json ]; then
-            echo "✅ Review results posted to PR #${{ github.event.pull_request.number }}"
+            echo "::error::Code review found blocking issues. Check the review comments on the PR."
           fi

@@ -149,11 +149,17 @@ class ConfigManager:
             Project configuration dictionary.
         """
         if path is None:
-            # Try standard locations
+            # Try standard locations (supports both GitHub and GitLab)
             possible_paths = [
+                # GitHub convention
                 self.project_root / ".github" / "ai-review-config.yml",
                 self.project_root / ".github" / "ai-review-config.yaml",
+                # GitLab convention
+                self.project_root / ".gitlab" / "ai-review-config.yml",
+                self.project_root / ".gitlab" / "ai-review-config.yaml",
+                # Root level (platform-agnostic)
                 self.project_root / "ai-review-config.yml",
+                self.project_root / "ai-review-config.yaml",
             ]
 
             for config_path in possible_paths:

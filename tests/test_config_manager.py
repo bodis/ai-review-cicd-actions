@@ -5,7 +5,7 @@ Tests for ConfigManager.
 import pytest
 import yaml
 
-from lib.config_manager import ConfigManager, ConfigurationError
+from ai_review.config_manager import ConfigManager, ConfigurationError
 
 
 class TestConfigManager:

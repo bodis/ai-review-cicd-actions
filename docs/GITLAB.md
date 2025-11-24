@@ -100,36 +100,38 @@ Go to your project: `Settings → CI/CD → Variables → Add variable`
 ```yaml
 ai-review:
   stage: test
-  image: python:3.11-slim
+  image: python:3.12-slim
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   before_script:
     # Install UV (Python package manager)
     - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
+    - export PATH="$HOME/.local/bin:$PATH"
 
-    # Install Node.js (for JS/TS projects, skip if Python-only)
-    - apt-get update && apt-get install -y curl
+    # Install Node.js (for Claude Code CLI)
+    - apt-get update && apt-get install -y curl git
     - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     - apt-get install -y nodejs
+
+    # Install Claude Code CLI
+    - npm install -g @anthropic-ai/claude-code
+
+    # Install AI Review package
+    - uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@main"
+
   script:
-    # Clone review system
-    - git clone --depth 1 https://github.com/your-org/ai-review-cicd-actions.git /tmp/review
-    - cd /tmp/review
-
-    # Install dependencies
-    - uv sync
-
     # Run review (auto-detects GitLab)
     - |
-      uv run python main.py \
-        --repo "$CI_PROJECT_PATH" \
+      uv run ai-review \
+        --repo "$CI_PROJECT_ID" \
         --pr "$CI_MERGE_REQUEST_IID" \
-        --project-root "$CI_PROJECT_DIR" \
-        --config "$CI_PROJECT_DIR/.gitlab/ai-review-config.yml"
+        --output review-results.json
+
   variables:
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
+    CLAUDE_CODE_HEADLESS: '1'
     # CI_JOB_TOKEN is automatically provided by GitLab
+```
 
 **3. Project Configuration** (`.gitlab/ai-review-config.yml`) - **Optional but Recommended**:
 

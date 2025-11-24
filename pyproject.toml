@@ -50,7 +50,7 @@ dev = [
 ]
 
 [project.scripts]
-ai-review = "main:main"
+ai-review = "ai_review.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/your-org/ai-review-cicd-actions"
@@ -65,14 +65,11 @@ build-backend = "hatchling.build"
 
 # Hatchling build configuration
 [tool.hatch.build.targets.wheel]
-packages = ["lib", "prompts", "config"]
+packages = ["ai_review"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/lib",
-    "/prompts",
-    "/config",
-    "/main.py",
+    "/ai_review",
     "/tests",
     "/README.md",
     "/LICENSE",
@@ -195,7 +192,7 @@ skips = [
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["lib"]
+source = ["ai_review"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
