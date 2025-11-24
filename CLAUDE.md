@@ -17,7 +17,7 @@ This project is distributed as a **Python package** (`ai_review`), not just sour
 **Installation:**
 ```bash
 # From git (recommended for CI)
-uv pip install "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@v1.0.0"
+uv pip install "ai-review-cicd-actions @ git+https://github.com/bodis/ai-review-cicd-actions.git@v1.0.0"
 
 # Local development
 uv sync

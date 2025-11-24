@@ -81,7 +81,7 @@ jobs:
 
       - name: Install AI Review package
         run: |
-          uv pip install --python .review-tools/bin/python "ai-code-review @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
+          uv pip install --python .review-tools/bin/python "ai-review-cicd-actions @ git+https://github.com/bodis/ai-review-cicd-actions.git@${{ inputs.package-version }}"
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
