@@ -12,6 +12,7 @@ from github.PullRequest import PullRequest
 from ..models import (
     AggregatedResults,
     ChangeType,
+    ExistingComment,
     FileChange,
     Finding,
     PRContext,
@@ -222,6 +223,96 @@ class GitHubPlatform(CodeReviewPlatform):
                 print(
                     f"  ⚠️ Failed to post comment on {finding.file_path}:{finding.line_number}: {e}"
                 )
+
+    def get_existing_inline_comments(
+        self,
+        project_identifier: str,
+        pr_number: int,
+    ) -> list[ExistingComment]:
+        """
+        Get existing inline review comments from GitHub PR.
+
+        Filters to only return comments that appear to be from AI review
+        (have AI-REVIEW marker or match known patterns).
+        """
+        pr = self._get_pr(project_identifier, pr_number)
+        existing_comments = []
+
+        try:
+            # Get all review comments on the PR
+            for comment in pr.get_review_comments():
+                body = comment.body or ""
+
+                # Check if this is an AI review comment
+                # Look for our marker or known patterns
+                is_ai_comment = (
+                    "<!-- AI-REVIEW:" in body
+                    or body.startswith("### 🔴")
+                    or body.startswith("### 🟠")
+                    or body.startswith("### 🟡")
+                    or body.startswith("### 🔵")
+                    or body.startswith("### ⚪")
+                    or "🔒 **" in body
+                    or "⚡ **" in body
+                    or "🏗️ **" in body
+                    or "✨ **" in body
+                    or "🧪 **" in body
+                    or "*Detected by:" in body
+                )
+
+                if is_ai_comment:
+                    # Extract marker metadata if present (for reference)
+                    marker_data = ExistingComment.extract_marker(body)
+
+                    existing_comments.append(
+                        ExistingComment(
+                            comment_id=str(comment.id),
+                            file_path=comment.path or "",
+                            line_number=comment.line or comment.original_line,
+                            body=body,
+                            created_at=comment.created_at.isoformat() if comment.created_at else None,
+                            updated_at=comment.updated_at.isoformat() if comment.updated_at else None,
+                            marker_data=marker_data,
+                        )
+                    )
+        except Exception as e:
+            print(f"  ⚠️ Failed to fetch existing comments: {e}")
+
+        return existing_comments
+
+    def update_inline_comment(
+        self,
+        project_identifier: str,
+        pr_number: int,
+        comment_id: str,
+        new_body: str,
+    ) -> bool:
+        """Update an existing review comment on GitHub."""
+        try:
+            repo = self.github.get_repo(project_identifier)
+            # Get the comment directly from the repo
+            comment = repo.get_pull(pr_number).get_review_comment(int(comment_id))
+            comment.edit(new_body)
+            return True
+        except Exception as e:
+            print(f"  ⚠️ Failed to update comment {comment_id}: {e}")
+            return False
+
+    def delete_inline_comment(
+        self,
+        project_identifier: str,
+        pr_number: int,
+        comment_id: str,
+    ) -> bool:
+        """Delete an existing review comment on GitHub."""
+        try:
+            repo = self.github.get_repo(project_identifier)
+            comment = repo.get_pull(pr_number).get_review_comment(int(comment_id))
+            comment.delete()
+            return True
+        except Exception as e:
+            print(f"  ⚠️ Failed to delete comment {comment_id}: {e}")
+            return False
 
     def update_status(
         self,

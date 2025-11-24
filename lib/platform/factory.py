@@ -7,7 +7,7 @@ Handles platform detection and instantiation of the correct platform client.
 import os
 from typing import Literal
 
-from .base import CodeReviewPlatform, PlatformConfig, PlatformReporter
+from .base import CodeReviewPlatform, CommentDeduplicationConfig, PlatformConfig, PlatformReporter
 
 PlatformType = Literal["github", "gitlab"]
 
@@ -117,6 +117,18 @@ def load_platform_config(config: dict) -> PlatformConfig:
     platform_type = detect_platform()
     platform_config = config.get(platform_type, config.get("github", {}))
 
+    # Load comment deduplication config
+    dedup_config_dict = config.get("comment_deduplication", {})
+    comment_deduplication = None
+
+    if dedup_config_dict:
+        comment_deduplication = CommentDeduplicationConfig(
+            enabled=dedup_config_dict.get("enabled", True),
+            model=dedup_config_dict.get("model", "claude-haiku-4-5"),
+            proximity_threshold=dedup_config_dict.get("proximity_threshold", 10),
+            cleanup_resolved=dedup_config_dict.get("cleanup_resolved", True),
+        )
+
     return PlatformConfig(
         post_summary_comment=platform_config.get("post_summary_comment", True),
         post_inline_comments=platform_config.get("post_inline_comments", True),
@@ -124,5 +136,6 @@ def load_platform_config(config: dict) -> PlatformConfig:
             "inline_comment_severity_threshold", "high"
         ),
         update_status_check=platform_config.get("update_status_check", True),
+        comment_deduplication=comment_deduplication,
         extras=platform_config.get("extras"),
     )

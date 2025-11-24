@@ -813,6 +813,27 @@ deduplication:
 - PR comments: `*Aspect: Security Review, Python Static Analysis | Tool: bandit, claude-ai*`
 - JSON output: `"aspect": "security_review, python_static_analysis"`
 
+### 🔄 Cross-Run Comment Deduplication
+
+**Why**: When the pipeline runs multiple times on the same PR (re-reviews, force pushes), duplicate comments accumulate, cluttering the PR.
+
+**How it works**: Compares new findings against existing PR comments using AI:
+1. Fetches existing AI review comments from the PR
+2. For each new finding, checks nearby existing comments (same file, within N lines)
+3. Uses Claude Haiku to determine: **NEW** (post), **UPDATE** (merge new insights), or **SKIP** (duplicate)
+4. Optionally deletes comments for resolved issues
+
+**Result**: Clean PRs with no duplicate comments, existing comments updated with new insights.
+
+**Configuration**:
+```yaml
+comment_deduplication:
+  enabled: true
+  model: "claude-haiku-4-5"    # Fast, cheap comparison
+  proximity_threshold: 10      # Lines range for matching
+  cleanup_resolved: true       # Delete comments for fixed issues
+```
+
 ---
 
 ## Acknowledgments

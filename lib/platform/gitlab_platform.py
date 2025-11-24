@@ -11,6 +11,7 @@ import gitlab
 from ..models import (
     AggregatedResults,
     ChangeType,
+    ExistingComment,
     FileChange,
     Finding,
     PRContext,
@@ -168,6 +169,121 @@ class GitLabPlatform(CodeReviewPlatform):
                 print(
                     f"  ⚠️ Failed to post discussion on {finding.file_path}:{finding.line_number}: {e}"
                 )
+
+    def get_existing_inline_comments(
+        self,
+        project_identifier: str,
+        mr_iid: int,
+    ) -> list[ExistingComment]:
+        """
+        Get existing inline discussions from GitLab MR.
+
+        Filters to only return discussions that appear to be from AI review
+        (have AI-REVIEW marker or match known patterns).
+        """
+        project, mr = self._get_mr(project_identifier, mr_iid)
+        existing_comments = []
+
+        try:
+            # Get all discussions on the MR
+            for discussion in mr.discussions.list(get_all=True):
+                # GitLab discussions have notes - we want the first note (original comment)
+                notes = discussion.attributes.get("notes", [])
+                if not notes:
+                    continue
+
+                first_note = notes[0]
+                body = first_note.get("body", "")
+
+                # Check if this is an AI review comment
+                is_ai_comment = (
+                    "<!-- AI-REVIEW:" in body
+                    or body.startswith("### 🔴")
+                    or body.startswith("### 🟠")
+                    or body.startswith("### 🟡")
+                    or body.startswith("### 🔵")
+                    or body.startswith("### ⚪")
+                    or "🔒 **" in body
+                    or "⚡ **" in body
+                    or "🏗️ **" in body
+                    or "✨ **" in body
+                    or "🧪 **" in body
+                    or "*Detected by:" in body
+                )
+
+                if is_ai_comment:
+                    # Get position info for line number
+                    position = first_note.get("position", {})
+                    line_number = position.get("new_line") or position.get("old_line")
+                    file_path = position.get("new_path") or position.get("old_path") or ""
+
+                    # Extract marker metadata if present (for reference)
+                    marker_data = ExistingComment.extract_marker(body)
+
+                    existing_comments.append(
+                        ExistingComment(
+                            comment_id=str(discussion.id),
+                            file_path=file_path,
+                            line_number=line_number,
+                            body=body,
+                            created_at=first_note.get("created_at"),
+                            updated_at=first_note.get("updated_at"),
+                            marker_data=marker_data,
+                        )
+                    )
+        except Exception as e:
+            print(f"  ⚠️ Failed to fetch existing discussions: {e}")
+
+        return existing_comments
+
+    def update_inline_comment(
+        self,
+        project_identifier: str,
+        mr_iid: int,
+        comment_id: str,
+        new_body: str,
+    ) -> bool:
+        """Update an existing discussion note on GitLab."""
+        try:
+            project, mr = self._get_mr(project_identifier, mr_iid)
+            # Get the discussion
+            discussion = mr.discussions.get(comment_id)
+            # Get the first note (the original comment)
+            notes = discussion.attributes.get("notes", [])
+            if notes:
+                note_id = notes[0].get("id")
+                # Update the note
+                note = mr.notes.get(note_id)
+                note.body = new_body
+                note.save()
+                return True
+            return False
+        except Exception as e:
+            print(f"  ⚠️ Failed to update discussion {comment_id}: {e}")
+            return False
+
+    def delete_inline_comment(
+        self,
+        project_identifier: str,
+        mr_iid: int,
+        comment_id: str,
+    ) -> bool:
+        """Delete an existing discussion on GitLab."""
+        try:
+            project, mr = self._get_mr(project_identifier, mr_iid)
+            # Get the discussion
+            discussion = mr.discussions.get(comment_id)
+            # Get the first note and delete it (this effectively removes the discussion)
+            notes = discussion.attributes.get("notes", [])
+            if notes:
+                note_id = notes[0].get("id")
+                note = mr.notes.get(note_id)
+                note.delete()
+                return True
+            return False
+        except Exception as e:
+            print(f"  ⚠️ Failed to delete discussion {comment_id}: {e}")
+            return False
 
     def update_status(
         self,

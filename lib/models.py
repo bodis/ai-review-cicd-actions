@@ -223,3 +223,55 @@ class DependencyChange:
     is_major_update: bool = False
     has_vulnerabilities: bool = False
     vulnerability_details: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
+class ExistingComment:
+    """Represents an existing inline comment on a PR/MR.
+
+    Used for cross-run comment deduplication to avoid posting duplicate comments
+    when the pipeline runs multiple times on the same PR.
+    """
+
+    comment_id: str  # Platform-specific ID (used for update/delete)
+    file_path: str
+    line_number: int | None
+    body: str
+    created_at: str | None = None
+    updated_at: str | None = None
+    # Extracted marker metadata (for reference, not used for matching)
+    marker_data: dict[str, str] | None = None
+
+    @staticmethod
+    def extract_marker(body: str) -> dict[str, str] | None:
+        """Extract AI-REVIEW marker data from comment body if present.
+
+        Returns:
+            Dict with marker data (file, line) or None if no marker found
+        """
+        import re
+
+        # New format: <!-- AI-REVIEW file="path" line="123" -->
+        match = re.search(
+            r'<!--\s*AI-REVIEW\s+file="([^"]+)"\s+line="(\d+)"\s*-->', body
+        )
+        if match:
+            return {"file": match.group(1), "line": match.group(2)}
+
+        # Legacy format: <!-- AI-REVIEW:hash --> (for backwards compatibility)
+        legacy_match = re.search(r"<!--\s*AI-REVIEW:([a-f0-9]+)\s*-->", body)
+        if legacy_match:
+            return {"legacy_hash": legacy_match.group(1)}
+
+        return None
+
+    @staticmethod
+    def create_marker(finding: "Finding") -> str:
+        """Create a marker for a finding with file and line metadata.
+
+        The marker identifies this as an AI review comment and stores
+        the original file/line for reference. Matching is done by AI
+        comparison, not by marker values.
+        """
+        line = finding.line_number if finding.line_number else 0
+        return f'<!-- AI-REVIEW file="{finding.file_path}" line="{line}" -->'

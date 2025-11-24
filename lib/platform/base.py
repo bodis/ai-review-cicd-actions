@@ -8,7 +8,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from ..models import AggregatedResults, Finding, PRContext
+from ..models import AggregatedResults, ExistingComment, Finding, PRContext
+
+
+@dataclass
+class CommentDeduplicationConfig:
+    """Configuration for cross-run comment deduplication."""
+
+    enabled: bool = True
+    model: str = "claude-haiku-4-5"  # Fast, cheap model for comparison
+    proximity_threshold: int = 10  # Lines range for considering duplicates
+    cleanup_resolved: bool = True  # Delete comments for resolved issues
 
 
 @dataclass
@@ -20,6 +30,9 @@ class PlatformConfig:
     post_inline_comments: bool = True
     inline_comment_severity_threshold: str = "high"
     update_status_check: bool = True
+
+    # Comment deduplication settings
+    comment_deduplication: CommentDeduplicationConfig | None = None
 
     # Platform-specific extras
     extras: dict[str, Any] | None = None
@@ -78,6 +91,69 @@ class CodeReviewPlatform(ABC):
             mr_number: Merge/Pull request number
             findings: List of findings with file/line information
             comment_texts: Corresponding comment texts (same order as findings)
+        """
+        pass
+
+    @abstractmethod
+    def get_existing_inline_comments(
+        self,
+        project_identifier: str,
+        mr_number: int,
+    ) -> list[ExistingComment]:
+        """
+        Get existing inline comments posted by AI review on the PR/MR.
+
+        Used for cross-run deduplication to avoid posting duplicate comments.
+        Only returns comments that have the AI-REVIEW marker or match known patterns.
+
+        Args:
+            project_identifier: Platform-specific project ID
+            mr_number: Merge/Pull request number
+
+        Returns:
+            List of existing AI review comments
+        """
+        pass
+
+    @abstractmethod
+    def update_inline_comment(
+        self,
+        project_identifier: str,
+        mr_number: int,
+        comment_id: str,
+        new_body: str,
+    ) -> bool:
+        """
+        Update an existing inline comment.
+
+        Args:
+            project_identifier: Platform-specific project ID
+            mr_number: Merge/Pull request number
+            comment_id: Platform-specific comment ID
+            new_body: New comment content
+
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def delete_inline_comment(
+        self,
+        project_identifier: str,
+        mr_number: int,
+        comment_id: str,
+    ) -> bool:
+        """
+        Delete an inline comment (for resolved issues).
+
+        Args:
+            project_identifier: Platform-specific project ID
+            mr_number: Merge/Pull request number
+            comment_id: Platform-specific comment ID
+
+        Returns:
+            True if deletion succeeded, False otherwise
         """
         pass
 
@@ -185,7 +261,7 @@ class PlatformReporter(ABC):
         # Post inline comments
         if config.post_inline_comments:
             self._post_inline_comments_with_threshold(
-                project_identifier, mr_number, results, config.inline_comment_severity_threshold
+                project_identifier, mr_number, results, config
             )
 
         # Update status check
@@ -208,10 +284,12 @@ class PlatformReporter(ABC):
         project_identifier: str,
         mr_number: int,
         results: AggregatedResults,
-        severity_threshold: str,
+        config: PlatformConfig,
     ) -> None:
-        """Post inline comments filtered by severity threshold."""
+        """Post inline comments filtered by severity threshold with deduplication."""
         from ..models import Severity
+
+        severity_threshold = config.inline_comment_severity_threshold
 
         # Map severity threshold
         severity_levels = {
@@ -249,11 +327,135 @@ class PlatformReporter(ABC):
         else:
             comment_texts = [self._format_inline_comment(f) for f in inline_findings]
 
-        # Post to platform
-        self.platform.post_inline_comments(
-            project_identifier, mr_number, inline_findings, comment_texts
+        # Check if deduplication is enabled
+        dedup_config = config.comment_deduplication
+        if dedup_config and dedup_config.enabled:
+            self._post_with_deduplication(
+                project_identifier, mr_number, inline_findings, comment_texts, dedup_config
+            )
+        else:
+            # Post directly without deduplication (legacy behavior)
+            self.platform.post_inline_comments(
+                project_identifier, mr_number, inline_findings, comment_texts
+            )
+            print(f"  ✓ Posted {len(inline_findings)} inline comments")
+
+    def _post_with_deduplication(
+        self,
+        project_identifier: str,
+        mr_number: int,
+        findings: list[Finding],
+        comment_texts: list[str],
+        dedup_config: CommentDeduplicationConfig,
+    ) -> None:
+        """Post inline comments with cross-run deduplication."""
+        from ..comment_deduplication import CommentAction, CommentDeduplicator
+
+        print("  Fetching existing comments for deduplication...")
+
+        # Get existing AI review comments from the PR
+        existing_comments = self.platform.get_existing_inline_comments(
+            project_identifier, mr_number
         )
-        print(f"  ✓ Posted {len(inline_findings)} inline comments")
+        print(f"  Found {len(existing_comments)} existing AI review comments")
+
+        if not existing_comments:
+            # No existing comments - post all as new (with markers)
+            from ..models import ExistingComment as EC
+
+            marked_texts = [
+                f"{text}\n\n{EC.create_marker(finding)}"
+                for text, finding in zip(comment_texts, findings, strict=True)
+            ]
+            self.platform.post_inline_comments(
+                project_identifier, mr_number, findings, marked_texts
+            )
+            print(f"  ✓ Posted {len(findings)} new inline comments")
+            return
+
+        # Initialize deduplicator
+        try:
+            deduplicator = CommentDeduplicator(
+                model=dedup_config.model,
+                proximity_threshold=dedup_config.proximity_threshold,
+                metrics=self.metrics,
+            )
+        except Exception as e:
+            print(f"  ⚠️ Could not initialize deduplicator: {e}")
+            print("     Falling back to direct posting")
+            self.platform.post_inline_comments(
+                project_identifier, mr_number, findings, comment_texts
+            )
+            return
+
+        # Compare new findings against existing comments
+        print("  Comparing findings against existing comments...")
+        dedup_results = deduplicator.deduplicate_comments(
+            findings, comment_texts, existing_comments
+        )
+
+        # Process results
+        new_count = 0
+        update_count = 0
+        skip_count = 0
+        matched_comment_ids: set[str] = set()
+
+        new_findings = []
+        new_texts = []
+
+        for result in dedup_results:
+            if result.action == CommentAction.NEW:
+                new_findings.append(result.finding)
+                new_texts.append(result.comment_text)
+                new_count += 1
+            elif result.action == CommentAction.UPDATE:
+                # Update existing comment with merged content
+                if result.existing_comment_id:
+                    success = self.platform.update_inline_comment(
+                        project_identifier,
+                        mr_number,
+                        result.existing_comment_id,
+                        result.comment_text,
+                    )
+                    if success:
+                        update_count += 1
+                        matched_comment_ids.add(result.existing_comment_id)
+                    else:
+                        # Failed to update - post as new instead
+                        new_findings.append(result.finding)
+                        new_texts.append(result.comment_text)
+                        new_count += 1
+            elif result.action == CommentAction.SKIP:
+                skip_count += 1
+                if result.existing_comment_id:
+                    matched_comment_ids.add(result.existing_comment_id)
+
+        # Post new comments
+        if new_findings:
+            self.platform.post_inline_comments(
+                project_identifier, mr_number, new_findings, new_texts
+            )
+
+        # Clean up resolved comments (if enabled)
+        deleted_count = 0
+        if dedup_config.cleanup_resolved:
+            comments_to_delete = deduplicator.get_comments_to_delete(
+                existing_comments, matched_comment_ids
+            )
+            for comment in comments_to_delete:
+                success = self.platform.delete_inline_comment(
+                    project_identifier, mr_number, comment.comment_id
+                )
+                if success:
+                    deleted_count += 1
+
+        # Report summary
+        print("  ✓ Comment deduplication complete:")
+        print(f"    - New: {new_count}")
+        print(f"    - Updated: {update_count}")
+        print(f"    - Skipped (duplicates): {skip_count}")
+        if deleted_count > 0:
+            print(f"    - Deleted (resolved): {deleted_count}")
 
     def _update_status_check(self, project_identifier: str, results: AggregatedResults) -> None:
         """Update commit status based on results."""

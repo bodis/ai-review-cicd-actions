@@ -29,14 +29,25 @@ PR → .github/workflows/ai-code-review.yml
 
 Supports both GitHub and GitLab via clean abstraction:
 
-- `lib/platform/base.py` - Abstract interface
+- `lib/platform/base.py` - Abstract interface + `PlatformReporter`
 - `lib/platform/github_platform.py` - GitHub implementation
 - `lib/platform/gitlab_platform.py` - GitLab implementation
-- `lib/platform/factory.py` - Auto-detection
+- `lib/platform/factory.py` - Auto-detection + config loading
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for details.
 
-### 3. Configuration Layers
+### 3. Deduplication Systems
+
+Two separate deduplication mechanisms:
+
+| System | File | Purpose |
+|--------|------|---------|
+| **Finding Deduplication** | `lib/ai_deduplication.py` | Merges duplicate findings *within a single run* (before posting) |
+| **Comment Deduplication** | `lib/comment_deduplication.py` | Prevents duplicate comments *across multiple runs* on same PR |
+
+Both use Claude Haiku for fast, cheap AI comparison. Config in `config/default-config.yml`.
+
+### 4. Configuration Layers
 
 Three-level precedence:
 1. `config/default-config.yml` - Built-in defaults
